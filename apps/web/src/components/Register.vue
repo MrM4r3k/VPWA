@@ -253,5 +253,23 @@ function goLogin() {
 .toggle-icon {
   cursor: pointer;
 }
+
+@media (max-width: 480px) {
+  .login-page {
+    padding: 16px;
+  }
+
+  .login-container {
+    max-width: 100%;
+  }
+
+  .brand-logo {
+    width: clamp(64px, 28vw, 96px);
+  }
+
+  .brand-text .app-tagline {
+    font-size: 16px;
+  }
+}
 </style>
 
