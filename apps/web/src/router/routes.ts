@@ -2,9 +2,22 @@ import type { RouteRecordRaw } from 'vue-router';
 
 const routes: RouteRecordRaw[] = [
   {
+    path: '/login',
+    component: () => import('components/Login.vue'),
+  },
+  {
+    path: '/register',
+    component: () => import('components/Register.vue'),
+  },
+  {
     path: '/',
+    redirect: '/login',
+  },
+  {
+    path: '/app',
     component: () => import('layouts/MainLayout.vue'),
     children: [{ path: '', component: () => import('pages/IndexPage.vue') }],
+    meta: { requiresAuth: true },
   },
 
   // Always leave this as last one,

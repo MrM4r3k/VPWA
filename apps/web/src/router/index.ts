@@ -33,5 +33,19 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     history: createHistory(process.env.VUE_ROUTER_BASE),
   });
 
+  Router.beforeEach((to) => {
+    const isAuthenticated = localStorage.getItem('auth.loggedIn') === 'true';
+
+    if (to.meta?.requiresAuth && !isAuthenticated) {
+      return { path: '/login', query: { redirect: to.fullPath } };
+    }
+
+    if (to.path === '/login' && isAuthenticated) {
+      return { path: '/app' };
+    }
+
+    return true;
+  });
+
   return Router;
 });

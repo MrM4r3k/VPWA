@@ -1,0 +1,9 @@
+{
+  "name": "vpwa-root",
+  "private": true,
+  "scripts": {
+    "start": "npm run --prefix apps/web dev"
+  }
+}
+
+
