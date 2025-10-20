@@ -1,51 +1,32 @@
-import { defineRouter } from '#q-app/wrappers';
-import {
-  createMemoryHistory,
-  createRouter,
-  createWebHashHistory,
-  createWebHistory,
-} from 'vue-router';
-import routes from './routes';
+// src/router/index.ts
+import { route } from 'quasar/wrappers'
+import { createRouter, createWebHistory } from 'vue-router'
+import routes from './routes'
 
-/*
- * If not building with SSR mode, you can
- * directly export the Router instantiation;
- *
- * The function below can be async too; either use
- * async/await or return a Promise which resolves
- * with the Router instance.
- */
-
-export default defineRouter(function (/* { store, ssrContext } */) {
-  const createHistory = process.env.SERVER
-    ? createMemoryHistory
-    : process.env.VUE_ROUTER_MODE === 'history'
-      ? createWebHistory
-      : createWebHashHistory;
-
+export default route(function () {
   const Router = createRouter({
-    scrollBehavior: () => ({ left: 0, top: 0 }),
+    history: createWebHistory(process.env.BASE_URL),
     routes,
+  })
 
-    // Leave this as is and make changes in quasar.conf.js instead!
-    // quasar.conf.js -> build -> vueRouterMode
-    // quasar.conf.js -> build -> publicPath
-    history: createHistory(process.env.VUE_ROUTER_BASE),
-  });
+  // autorizačná podmienka – uprav si na svoj kľúč (token)
+  const hasToken = () => !!localStorage.getItem('auth_token') || localStorage.getItem('auth.loggedIn') === 'true'
 
-  Router.beforeEach((to) => {
-    const isAuthenticated = localStorage.getItem('auth.loggedIn') === 'true';
-
-    if (to.meta?.requiresAuth && !isAuthenticated) {
-      return { path: '/login', query: { redirect: to.fullPath } };
+  Router.beforeEach((to, from) => {
+    // 1) Bez prihlásenia nepustiť na /app (a deti)
+    if (to.matched.some(r => r.meta.requiresAuth) && !hasToken()) {
+      return { name: 'login', query: { redirect: to.fullPath } }
+    }
+    // 2) Po registrácii presmeruj NA LOGIN, bez ohľadu na to, kam sa pokúša ísť
+    if (from.name === 'register' && to.name !== 'login') {
+      return { name: 'login' }
     }
 
-    if (to.path === '/login' && isAuthenticated) {
-      return { path: '/app' };
+    // 3) Ak je user prihlásený, nepúšťaj ho na login/register
+    if ((to.name === 'login' || to.name === 'register') && hasToken()) {
+      return { name: 'welcome' }
     }
+  })
 
-    return true;
-  });
-
-  return Router;
-});
+  return Router
+})

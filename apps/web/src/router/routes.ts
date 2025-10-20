@@ -3,20 +3,30 @@ import type { RouteRecordRaw } from 'vue-router';
 const routes: RouteRecordRaw[] = [
   {
     path: '/login',
+    name: '/login',
     component: () => import('components/Login.vue'),
   },
   {
     path: '/register',
+    name: '/register',
     component: () => import('components/Register.vue'),
   },
   {
     path: '/',
-    redirect: '/login',
+    redirect: { name: '/login' },
+  },
+  {
+    path: '/newgroup',
+    name: '/newgroup',
+    component: () => import('pages/NewGroup.vue'),
   },
   {
     path: '/app',
     component: () => import('layouts/MainLayout.vue'),
-    children: [{ path: '', component: () => import('pages/IndexPage.vue') }],
+    children: [
+      { path: '', name: 'welcome', component: () => import('pages/WelcomePage.vue'), meta: { showMembers: false } },
+      { path: 'c/:channelId', name: 'chat', component: () => import('pages/IndexPage.vue'), meta: { showMembers: true } },
+    ],
     meta: { requiresAuth: true },
   },
 
