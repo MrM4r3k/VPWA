@@ -6,7 +6,7 @@
             {{ active.channelName }}
           </div>
           <div style="font-size:14px; color:#9ca3af; margin-top:2px; ">
-            {{ active.members.length }} members • {{ active.isPrivate ? 'Private' : 'Public' }}
+            {{ members.length }} members • {{ active.isPrivate ? 'Private' : 'Public' }}
           </div>
         </q-toolbar-title>  
       </q-toolbar>
@@ -19,6 +19,7 @@
   import { useChannelStore, type Channel } from 'src/stores/channel-store' 
   
   const channels = useChannelStore()
+  const members = computed(() => channels.activeMembers)
   const route = useRoute()
   
   // Bezpečný fallback, aby template nikdy nedostal null/undefined
@@ -26,8 +27,8 @@
     id: '_fallback',
     channelName: '—',
     isPrivate: false,
-    members: [],
     ownerId: '_',
+    memberIds: [],
   }
   
   // Udržuj store zosúladený s URL (/app/c/:channelId)
@@ -51,7 +52,6 @@
   
 <style scoped>
 .chat-header {
-  /* prebíjame globálne .q-header { position: fixed } */
   position: fixed;
   top: 0;
   left: auto !important;
