@@ -8,7 +8,22 @@
           <div style="font-size:14px; color:#9ca3af; margin-top:2px; ">
             {{ members.length }} members • {{ active.isPrivate ? 'Private' : 'Public' }}
           </div>
-        </q-toolbar-title>  
+        </q-toolbar-title>
+        
+        <!-- Leave Group Button -->
+        <div class="header-right">
+          <q-btn
+            flat
+            dense
+            color="red"
+            size="sm"
+            class="btn-ghost leave-group-btn"
+            @click="leaveGroup"
+            :disable="!active || active.id === '_fallback'"
+          >
+            <span class="btn-text">Leave Group</span>
+          </q-btn>
+        </div>
       </q-toolbar>
     </header>
   </template>
@@ -48,6 +63,9 @@
     }
     return channels.activeChannel ?? channels.channels[0] ?? FALLBACK
   })
+
+  const leaveGroup = () => {
+  }
   </script>
   
 <style scoped>
@@ -100,5 +118,39 @@
 }
 
 .btn-ghost { background: rgba(74, 78, 132, 0.25); }
+
+.leave-group-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+}
+
+.leave-group-btn:hover {
+  background: rgba(244, 67, 54, 0.15);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(244, 67, 54, 0.2);
+}
+
+.leave-group-btn:disabled {
+  opacity: 0.5;
+  transform: none;
+}
+
+.btn-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f44336;
+  line-height: 1;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.leave-group-btn:disabled .btn-text {
+  color: #9ca3af;
+}
 </style>
   
