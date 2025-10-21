@@ -88,7 +88,7 @@ const rightWidth = '280px'
   flex: 1;
   min-height: 0;                   /* dôležité pre q-scroll-area */
   padding: 16px;
-  padding-top: 88px;   /* 64px header + spacing */
+  padding-top: 73px;   /* 64px header + spacing */
   padding-bottom: 104px; /* 64-80px composer + spacing */
 }
 /* responzívne */
