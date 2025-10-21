@@ -82,7 +82,8 @@ defineOptions({ name: 'WelcomePanel' });
 }
 
 .welcome-card {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(24, 26, 31, 0.9);
+  backdrop-filter: blur(6px);
   border-radius: 10px;
   padding: 20px;
   border: 1px solid rgba(148, 163, 184, 0.15);

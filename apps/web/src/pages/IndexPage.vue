@@ -1,5 +1,5 @@
 <template>
-  <q-page class="chat-shell" style="background: #0f111a;">
+  <q-page class="chat-shell">
     <div class="grid" :style="{ '--left': leftWidth }">
       <!-- LEFT: Sidebar -->
       <aside class="col-left">
