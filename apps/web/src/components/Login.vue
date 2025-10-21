@@ -1,6 +1,6 @@
 <template>
-  <div class="login-page bg-gradient">
-    <div class="login-container">
+  <div class="auth-page bg-gradient">
+    <div class="auth-container">
       <div class="brand">
         <img :src="logoUrl" alt="Logo" class="brand-logo" />
         <div class="brand-text">
@@ -8,7 +8,7 @@
         </div>
       </div>
 
-      <q-card class="login-card" dark bordered flat>
+      <q-card class="auth-card" dark bordered flat>
         <q-card-section class="card-title">Sign in to your account</q-card-section>
 
         <q-card-section>
@@ -67,6 +67,7 @@ import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { QForm } from 'quasar';
 import logoUrl from 'src/assets/logo.png';
+import 'src/css/auth-theme.scss';
 
 defineOptions({
   name: 'LoginPage',
@@ -108,95 +109,5 @@ function goRegister() {
 </script>
 
 <style scoped>
-.login-page {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  min-height: 100vh;
-  box-sizing: border-box;
-}
-
-.bg-gradient {
-  background: radial-gradient(1200px 600px at 10% -10%, rgba(88, 101, 242, 0.25), transparent),
-              radial-gradient(1200px 600px at 110% 110%, rgba(32, 34, 37, 0.6), transparent),
-              #0b0d10;
-}
-
-.login-container {
-  width: 100%;
-  max-width: 420px;
-}
-
-.brand {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 16px;
-  color: #e5e7eb;
-}
-
-.brand-logo {
-  width: clamp(80px, 20vw, 128px);
-  object-fit: contain;
-  object-position: center;
-  display: block;
-}
-
-
-.brand-text .app-tagline {
-  font-size: 18px;
-  line-height: 1.5;
-  font-weight: 600;
-  color: #cbd5e1;
-  letter-spacing: 0.2px;
-}
-
-.login-card {
-  width: 100%;
-  padding: 8px 0;
-  background: rgba(24, 26, 31, 0.9);
-  backdrop-filter: blur(6px);
-  border: 1px solid rgba(148, 163, 184, 0.15);
-}
-
-.card-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #e5e7eb;
-}
-
-.field {
-  margin-bottom: 16px;
-}
-
-.actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.toggle-icon {
-  cursor: pointer;
-}
-
-@media (max-width: 480px) {
-  .login-page {
-    padding: 16px;
-  }
-
-  .login-container {
-    max-width: 100%;
-  }
-
-  .brand-logo {
-    width: clamp(64px, 28vw, 96px);
-  }
-
-  .brand-text .app-tagline {
-    font-size: 16px;
-  }
-}
+/* Styles are now imported from auth-theme.scss */
 </style>
