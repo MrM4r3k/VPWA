@@ -174,16 +174,16 @@
     flex-direction: column;
     height: 100vh;
     width: 320px;
-    background: rgba(24, 26, 31, 0.9);
-    backdrop-filter: blur(6px);
+    background: rgba(11, 13, 16, 0.95);
+    backdrop-filter: blur(8px);
     position: fixed;
     left: 0;
     top: 0;
     z-index: 1000;
-    border-right: 1px solid rgba(148, 163, 184, 0.15);
+    border-right: 1px solid rgba(88, 101, 242, 0.2);
   }
   .sidebar__header {
-    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+    border-bottom: 1px solid rgba(88, 101, 242, 0.2);
     padding: 12px 16px;
   }
   .sidebar__nav {
@@ -205,7 +205,7 @@
   /* Server Info */
   .server-info {
     padding: 16px 20px;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+    border-bottom: 1px solid rgba(88, 101, 242, 0.2);
     margin-bottom: 8px;
   }
   .server-name {

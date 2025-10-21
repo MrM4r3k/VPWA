@@ -54,16 +54,51 @@
 .chat-header {
   position: fixed;
   top: 0;
-  left: auto !important;
-  right: auto !important;
-  width: 100%;
+  left: 320px; /* Account for left sidebar width */
+  right: 280px; /* Account for right sidebar width */
   z-index: 3;
-
-  background: #1a1d2e;
-  border-bottom: 1px solid #374151;
-  height: 80px;
+  background: rgba(11, 13, 16, 0.95);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(88, 101, 242, 0.2);
+  height: 64px;
   display: flex;
   padding: 0 16px;
 }
+
+.header-inner {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-left { min-width: 0; }
+
+.channel-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #8b93f9;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.channel-subtitle {
+  font-size: 13px;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-ghost { background: rgba(74, 78, 132, 0.25); }
 </style>
   
