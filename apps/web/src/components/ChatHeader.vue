@@ -1,16 +1,17 @@
 <template>
-  <header class="chat-header">
-    <div class="header-inner">
-      <div class="header-left">
-        <div class="channel-title">{{ active.channelName }}</div>
-        <div class="channel-subtitle">{{ active.members.length }} members • {{ active.isPrivate ? 'Private' : 'Public' }}</div>
-      </div>
-      <div class="header-right">
-        <q-btn flat round size="sm" icon="search" color="white" class="btn-ghost" />
-      </div>
-    </div>
-  </header>
-</template>
+    <header class="chat-header">
+      <q-toolbar class="row items-center q-gutter-md">  
+        <q-toolbar-title class="col">
+          <div style="font-size:18px; font-weight:600; color:#8b93f9; line-height:1.1">
+            {{ active.channelName }}
+          </div>
+          <div style="font-size:14px; color:#9ca3af; margin-top:2px; ">
+            {{ members.length }} members • {{ active.isPrivate ? 'Private' : 'Public' }}
+          </div>
+        </q-toolbar-title>  
+      </q-toolbar>
+    </header>
+  </template>
   
   <script setup lang="ts">
   import { computed, watchEffect } from 'vue'
@@ -18,6 +19,7 @@
   import { useChannelStore, type Channel } from 'src/stores/channel-store' 
   
   const channels = useChannelStore()
+  const members = computed(() => channels.activeMembers)
   const route = useRoute()
   
   // Bezpečný fallback, aby template nikdy nedostal null/undefined
@@ -25,8 +27,8 @@
     id: '_fallback',
     channelName: '—',
     isPrivate: false,
-    members: [],
     ownerId: '_',
+    memberIds: [],
   }
   
   // Udržuj store zosúladený s URL (/app/c/:channelId)
@@ -50,7 +52,6 @@
   
 <style scoped>
 .chat-header {
-  /* prebíjame globálne .q-header { position: fixed } */
   position: fixed;
   top: 0;
   left: 320px; /* Account for left sidebar width */
