@@ -20,6 +20,10 @@
             <!-- TODO: MessageList sem -->
           </q-scroll-area>
 
+          <aside class="col-right">
+            <ChannelMembers />
+          </aside>
+
           <!-- Sticky composer len v strede -->
           <div class="center-composer">
             <MessageComposer />
@@ -27,9 +31,6 @@
         </div>
       </main>
       
-      <!-- <aside class="col-right">
-        <ChannelMembers />
-      </aside> -->
     </div>
   </q-page>
 </template>
@@ -41,7 +42,7 @@ import SideBar from 'src/components/SideBar.vue'
 import ChatHeader from 'src/components/ChatHeader.vue'
 import MessageComposer from 'src/components/MessageComposer.vue'
 import { useChannelStore } from 'src/stores/chat-store'
-//import ChannelMembers from 'src/components/ChannelMembers.vue'
+import ChannelMembers from 'src/components/ChannelMembers.vue'
 
 const route = useRoute()
 const ch = useChannelStore()
