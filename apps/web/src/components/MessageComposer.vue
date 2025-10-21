@@ -1,34 +1,25 @@
 <template>
-    <footer v-if="active" class="chat-footer">
-      <q-input 
-      rounded
-      v-model="text" 
-      label="Text" 
-      label-color="white"
-      dense
-      standout="text-white bg-transparent"
-      input-class="text-white"
-      autogrow
-        overflow = "auto"
-        input-style="max-height:120px; overflow:auto; line-height:1.35; position:absolute; bottom: 1px"
+  <footer v-if="active" class="chat-footer">
+    <div class="composer-bar">
+      <div class="composer-actions-left">
+      </div>
+
+      <q-input
+        v-model="text"
+        borderless
+        autogrow
+        placeholder="Send a message"
+        input-class="text-white"
+        class="composer-input"
         @keydown.enter.prevent="onEnter"
         @input="onInput"
-        style="width: 1040px;
-              margin: 20px;
-              border-radius: 20px">
+      />
 
-          <template v-slot:after>
-            <q-btn 
-            round 
-            dense 
-            flat 
-            icon="send" 
-            color="white" 
-            :disable="!canSend" 
-            @click="submit"/>
-          </template>
-        </q-input>
-    </footer>
+      <div class="composer-actions-right">
+        <q-btn :disable="!canSend" round unelevated color="primary" icon="send" @click="submit" />
+      </div>
+    </div>
+  </footer>
 </template>
   
   <script setup lang="ts">
@@ -63,13 +54,49 @@ function onInput() {
   </script>
   
 <style scoped>
-  .chat-footer { 
-    background:#1a1d2e; 
-    height:80px; 
-    display:flex; 
-    padding:0 16px; 
-    border-top:1px solid #374151;
-}
-  
+  .chat-footer {
+    position: fixed;
+    bottom: 0;
+    left: 320px; /* Account for left sidebar width */
+    right: 280px; /* Account for right sidebar width */
+    background: rgba(11, 13, 16, 0.95);
+    backdrop-filter: blur(8px);
+    display: flex;
+    padding: 12px 16px;
+    border-top: 1px solid rgba(88, 101, 242, 0.2);
+    z-index: 3;
+  }
+
+  .composer-bar {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    background: rgba(24, 26, 31, 0.9);
+    border: 1px solid rgba(88, 101, 242, 0.15);
+    border-radius: 14px;
+    padding: 6px 10px;
+  }
+
+  .composer-actions-left, .composer-actions-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn-ghost {
+    background: rgba(74, 78, 132, 0.25);
+  }
+
+  .composer-input :deep(textarea) {
+    color: #e5e7eb;
+  }
+
+  .composer-input {
+    min-height: 36px;
+  }
 </style>
   
