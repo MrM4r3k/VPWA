@@ -127,7 +127,7 @@
   
   <script setup lang="ts">
   import { computed, ref } from 'vue';
-  import { useChannelStore } from '../stores/chat-store';
+  import { useChannelStore } from '../stores/channel-store';
   import { useRouter } from 'vue-router';
   
   defineOptions({ name: 'SideBar' });
@@ -140,8 +140,7 @@
     const q = search.value.trim().toLowerCase()
     if (!q) return store.channels
     return store.channels.filter(c =>
-      c.channelName.toLowerCase().includes(q) ||
-      (c.lastMessage ?? '').toLowerCase().includes(q)
+      c.channelName.toLowerCase().includes(q)
     )
   })
   

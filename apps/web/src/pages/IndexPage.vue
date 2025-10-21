@@ -41,7 +41,7 @@ import { useRoute } from 'vue-router'
 import SideBar from 'src/components/SideBar.vue'
 import ChatHeader from 'src/components/ChatHeader.vue'
 import MessageComposer from 'src/components/MessageComposer.vue'
-import { useChannelStore } from 'src/stores/chat-store'
+import { useChannelStore } from 'src/stores/channel-store'
 import ChannelMembers from 'src/components/ChannelMembers.vue'
 
 const route = useRoute()

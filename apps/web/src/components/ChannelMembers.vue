@@ -1,6 +1,9 @@
 <template>
     <aside class="members">
+        <!-- HEADER -->
       <div class="members__header">Members</div>
+
+      <!-- MEMBERS -->
       <q-scroll-area class="fit">
         <q-list padding>
           <q-item v-for="m in channels.activeMembers" :key="m.id">
@@ -20,11 +23,12 @@
           </q-item>
         </q-list>
       </q-scroll-area>
+      
     </aside>
 </template>
 
 <script setup lang="ts">
-import { useChannelStore } from '../stores/chat-store'
+import { useChannelStore } from '../stores/channel-store'
 const channels = useChannelStore()
 </script>
 
@@ -55,5 +59,5 @@ const channels = useChannelStore()
         transform: translateX(100%);
         transition: transform 0.3s ease; 
     } 
-} /* skry na mobiloch */
+}
 </style>

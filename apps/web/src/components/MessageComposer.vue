@@ -33,7 +33,7 @@
   
   <script setup lang="ts">
   import { computed,ref } from 'vue'
-  import { useChannelStore, type Channel } from 'src/stores/chat-store'
+  import { useChannelStore, type Channel } from 'src/stores/channel-store'
   
   const channels = useChannelStore()
   const active = computed<Channel | null>(() => channels.activeChannel)

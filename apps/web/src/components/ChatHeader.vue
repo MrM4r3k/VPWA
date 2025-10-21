@@ -16,7 +16,7 @@
   <script setup lang="ts">
   import { computed, watchEffect } from 'vue'
   import { useRoute } from 'vue-router'
-  import { useChannelStore, type Channel } from 'src/stores/chat-store' // správna cesta!
+  import { useChannelStore, type Channel } from 'src/stores/channel-store' 
   
   const channels = useChannelStore()
   const route = useRoute()
