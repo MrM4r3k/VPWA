@@ -36,7 +36,8 @@ const channels = useChannelStore()
     height: 100vh; 
     position: fixed; 
     right: 0; 
-    top: 0; }
+    top: 0; 
+    z-index: 1000; }
 .members__header { 
     padding: 25px 90px; 
     border-bottom: 1px solid #374151; 
