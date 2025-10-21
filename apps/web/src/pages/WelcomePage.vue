@@ -1,5 +1,5 @@
 <template>
-    <q-page class="welcome">
+    <q-page class="welcome" style="background: #1a1d2e;">
         <SideBar />
         <WelcomePanel />
     </q-page>

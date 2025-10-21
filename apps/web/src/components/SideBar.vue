@@ -94,38 +94,32 @@
     <!-- BODY -->
     <nav class="sidebar__nav" role="navigation">
       <q-scroll-area class="sidebar__scroll">
-        <!-- Server Info -->
-        <div class="server-info">
-          <div class="server-name">Loom Chat</div>
-          <div class="server-status">
-            <q-icon name="fiber_manual_record" size="8px" color="green" />
-            <span>Online</span>
-          </div>
-        </div>
-
-        <!-- Channels List -->
-        <div class="channel-list">
-          <div
+        <!-- List -->
+        <q-list padding separator>
+          <q-item
             v-for="c in filtered"
             :key="c.id"
+            clickable 
+            v-ripple
             @click="open(c.id)"
-            :class="['channel-item', store.activeChannelId === c.id ? 'channel-item--active' : '']"
+            :class="['conv-item', store.activeChannelId === c.id ? 'conv-item--active' : '']"
           >
-            <div class="channel-icon">
-              <q-icon :name="c.isPrivate ? 'lock' : 'tag'" size="16px" />
-            </div>
-            <div class="channel-name">{{ c.channelName }}</div>
-            <div v-if="c.unread && c.unread > 0" class="unread-badge">
-              {{ c.unread > 99 ? '99+' : c.unread }}
-            </div>
+            <q-item-section style="padding: 15px;">
+              <q-item-label class="text-weight-medium ellipsis" :style="{ color: '#8b93f9' }">
+                {{ c.channelName }}
+              </q-item-label>
+              
+            </q-item-section>
+            <q-item-section side v-if="c.unread && c.unread > 0">
+              <q-badge :label="c.unread" color="primary"/>
+            </q-item-section>
+          </q-item>
+          <!-- Empty state -->
+          <div v-if="!filtered.length" class="q-pa-md row items-center text-grey-5">
+            <q-icon name="forum" size="28px" class="q-mr-sm" />
+            <span>No conversations found</span>
           </div>
-        </div>
-
-        <!-- Empty state -->
-        <div v-if="!filtered.length" class="empty-state">
-          <q-icon name="forum" size="32px" />
-          <span>No channels found</span>
-        </div>
+        </q-list>
       </q-scroll-area>
     </nav>
   </aside>
@@ -174,16 +168,15 @@
     flex-direction: column;
     height: 100vh;
     width: 320px;
-    background: rgba(24, 26, 31, 0.9);
-    backdrop-filter: blur(6px);
+    background: #1a1d2e;
     position: fixed;
     left: 0;
     top: 0;
     z-index: 1000;
-    border-right: 1px solid rgba(148, 163, 184, 0.15);
+    border-right: 1px solid #374151;
   }
   .sidebar__header {
-    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+    border-bottom: 1px solid #374151;
     padding: 12px 16px;
   }
   .sidebar__nav {
@@ -202,98 +195,23 @@
     transform: scale(1.05);
   }
 
-  /* Server Info */
-  .server-info {
-    padding: 16px 20px;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
-    margin-bottom: 8px;
+  /* Zoznam – jemné zvýraznenie */
+  .conv-item {
+    padding: 12px 14px;
+    margin: 6px 8px;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    border-radius: 20px;
+    background: rgba(74, 78, 132, 0.25);
+    
   }
-  .server-name {
-    font-size: 16px;
-    font-weight: 600;
-    color: #e5e7eb;
-    margin-bottom: 4px;
+  .conv-item:hover {
+    background: #8b92f936;
+    border-left: 2px solid;
+    border-left-color: #8b93f9;
   }
-  .server-status {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: #9ca3af;
-  }
-
-  /* Channel List */
-  .channel-list {
-    padding: 8px 8px 0;
-  }
-  .channel-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
-    margin: 1px 0;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    position: relative;
-  }
-  .channel-item:hover {
-    background: rgba(255, 255, 255, 0.08);
-  }
-  .channel-item--active {
-    background: rgba(88, 101, 242, 0.15);
-    color: #e5e7eb;
-  }
-  .channel-item--active::before {
-    content: '';
-    position: absolute;
-    left: -8px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;
-    height: 20px;
-    background: #8b93f9;
-    border-radius: 0 2px 2px 0;
-  }
-  .channel-icon {
-    color: #9ca3af;
-    display: flex;
-    align-items: center;
-  }
-  .channel-item--active .channel-icon {
-    color: #8b93f9;
-  }
-  .channel-name {
-    flex: 1;
-    font-size: 14px;
-    color: #cbd5e1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .channel-item--active .channel-name {
-    color: #e5e7eb;
-  }
-  .unread-badge {
-    background: #8b93f9;
-    color: white;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 6px;
-    border-radius: 10px;
-    min-width: 18px;
-    text-align: center;
-  }
-
-  /* Empty State */
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    padding: 40px 20px;
-    color: #9ca3af;
-    text-align: center;
+  .conv-item--active {
+    background: rgba(88, 101, 242, 0.12);
+    border-left-color: #5865f2;
   }
   /* Responsive správanie (mobil – voliteľné) */
   @media (max-width: 500px) {
