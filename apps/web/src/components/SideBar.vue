@@ -115,7 +115,10 @@
               <q-icon :name="c.isPrivate ? 'lock' : 'tag'" size="16px" />
             </div>
             <div class="channel-name">{{ c.channelName }}</div>
-            <div v-if="c.unread && c.unread > 0" class="unread-badge">
+            <div v-if="c.isInvited" class="invitation-badge">
+              Invitation
+            </div>
+            <div v-else-if="c.unread && c.unread > 0" class="unread-badge">
               {{ c.unread > 99 ? '99+' : c.unread }}
             </div>
           </div>
@@ -282,6 +285,15 @@
     padding: 2px 6px;
     border-radius: 10px;
     min-width: 18px;
+    text-align: center;
+  }
+  .invitation-badge {
+    background: #4caf50;
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 10px;
     text-align: center;
   }
 

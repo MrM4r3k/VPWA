@@ -10,19 +10,45 @@
           </div>
         </q-toolbar-title>
         
-        <!-- Leave Group Button -->
+        <!-- Action Buttons -->
         <div class="header-right">
-          <q-btn
-            flat
-            dense
-            color="red"
-            size="sm"
-            class="btn-ghost leave-group-btn"
-            @click="leaveGroup"
-            :disable="!active || active.id === '_fallback'"
-          >
-            <span class="btn-text">Leave Group</span>
-          </q-btn>
+          <!-- Invitation buttons -->
+          <template v-if="active.isInvited">
+            <q-btn
+              flat
+              dense
+              color="green"
+              size="sm"
+              class="btn-ghost accept-btn"
+              @click="acceptInvitation"
+            >
+              <span class="btn-text">Accept</span>
+            </q-btn>
+            <q-btn
+              flat
+              dense
+              color="red"
+              size="sm"
+              class="btn-ghost decline-btn"
+              @click="declineInvitation"
+            >
+              <span class="btn-text">Decline</span>
+            </q-btn>
+          </template>
+          <!-- leave button -->
+          <template v-else>
+            <q-btn
+              flat
+              dense
+              color="red"
+              size="sm"
+              class="btn-ghost leave-group-btn"
+              @click="leaveGroup"
+              :disable="!active || active.id === '_fallback'"
+            >
+              <span class="btn-text">Leave Group</span>
+            </q-btn>
+          </template>
         </div>
       </q-toolbar>
     </header>
@@ -65,6 +91,12 @@
   })
 
   const leaveGroup = () => {
+  }
+
+  const acceptInvitation = () => {
+  }
+
+  const declineInvitation = () => {
   }
   </script>
   
@@ -119,7 +151,7 @@
 
 .btn-ghost { background: rgba(74, 78, 132, 0.25); }
 
-.leave-group-btn {
+.leave-group-btn, .accept-btn, .decline-btn {
   padding: 8px 16px;
   border-radius: 8px;
   transition: all 0.2s ease;
@@ -129,10 +161,16 @@
   min-height: 36px;
 }
 
-.leave-group-btn:hover {
+.leave-group-btn:hover, .decline-btn:hover {
   background: rgba(244, 67, 54, 0.15);
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(244, 67, 54, 0.2);
+}
+
+.accept-btn:hover {
+  background: rgba(76, 175, 80, 0.15);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2);
 }
 
 .leave-group-btn:disabled {
@@ -143,10 +181,17 @@
 .btn-text {
   font-size: 13px;
   font-weight: 600;
-  color: #f44336;
   line-height: 1;
   letter-spacing: 0.5px;
   text-transform: uppercase;
+}
+
+.leave-group-btn .btn-text, .decline-btn .btn-text {
+  color: #f44336;
+}
+
+.accept-btn .btn-text {
+  color: #4caf50;
 }
 
 .leave-group-btn:disabled .btn-text {

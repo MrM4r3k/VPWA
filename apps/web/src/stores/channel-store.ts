@@ -11,6 +11,7 @@ export interface Channel {
   ownerId: string
   lastActivityAt?: string
   memberIds: string[]
+  isInvited?: boolean
 }
 
 export const useChannelStore = defineStore('channels', {
@@ -53,6 +54,14 @@ export const useChannelStore = defineStore('channels', {
         isPrivate: false,
         ownerId: 'u3',
         memberIds: ['u1', 'u3', 'u2', 'u4'],
+      },
+      {
+        id: 'invite1',
+        channelName: 'Design Team',
+        isPrivate: true,
+        ownerId: 'u2',
+        memberIds: ['u2', 'u4'],
+        isInvited: true,
       },
     ] as Channel[],
     activeChannelId: null as string | null,
