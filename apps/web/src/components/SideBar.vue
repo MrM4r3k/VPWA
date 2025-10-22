@@ -147,10 +147,23 @@
 
   const filtered = computed(() => {
     const q = search.value.trim().toLowerCase()
-    if (!q) return store.channels
-    return store.channels.filter(c =>
-      c.channelName.toLowerCase().includes(q)
-    )
+    let channels = store.channels
+    
+    // Search filter
+    if (q) {
+      channels = channels.filter(c =>
+        c.channelName.toLowerCase().includes(q)
+      )
+    }
+    
+    // Sort channels
+    return channels.sort((a, b) => {
+      // If one is invited and the other isn't, invited comes first
+      if (a.isInvited && !b.isInvited) return -1
+      if (!a.isInvited && b.isInvited) return 1
+      
+      return 0
+    })
   })
   
   function open(id: string) {
