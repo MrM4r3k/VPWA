@@ -13,8 +13,8 @@
           <ChatHeader />
 
           <!-- Messages Area -->
-          <q-scroll-area class="center-messages fit">
-            <MessageList />
+          <q-scroll-area ref="sa" class="center-messages fit">
+            <MessageList :scroll-target="saContainer" />
           </q-scroll-area>
 
           <!-- Typing Indicator (design only) -->
@@ -45,7 +45,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { onMounted, watch, ref, onBeforeUnmount } from 'vue'
+import { QScrollArea } from 'quasar'
 import { useRoute } from 'vue-router'
 import SideBar from 'src/components/SideBar.vue'
 import ChatHeader from 'src/components/ChatHeader.vue'
@@ -68,6 +69,23 @@ watch(() => route.params.channelId, activateFromRoute)
 // šírka stĺpcov
 const leftWidth = '320px'
 const rightWidth = '280px'
+
+// Expose q-scroll-area container element for QInfiniteScroll target
+const sa = ref<QScrollArea | null>(null)
+const saContainer = ref<Element | undefined>(undefined)
+const attachScrollTarget = () => {
+  // q-scroll-area exposes getScrollTarget() on the component proxy
+  const el = sa.value?.getScrollTarget?.()
+  saContainer.value = el
+}
+onMounted(() => {
+  attachScrollTarget()
+  // also re-attach on possible layout changes
+  window.addEventListener('resize', attachScrollTarget)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', attachScrollTarget)
+})
 </script>
 
 <style scoped>

@@ -1,5 +1,16 @@
 <template>
-  <div class="messages">
+  <q-infinite-scroll
+    class="messages"
+    reverse
+    @load="onLoad"
+    :scroll-target="scrollTarget"
+  >
+    <template v-slot:loading>
+      <div class="row justify-center q-my-md">
+        <q-spinner color="primary" name="dots" size="40px" />
+      </div>
+    </template>
+
     <div
       v-for="msg in visibleMessages"
       :key="msg.id"
@@ -15,12 +26,12 @@
         <div class="text" v-html="renderText(msg.text)"></div>
       </div>
     </div>
-  </div>
+  </q-infinite-scroll>
   
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useChannelStore, type Channel } from 'src/stores/channel-store'
 import { useMembersStore, type Member } from 'src/stores/members-store'
 
@@ -34,6 +45,9 @@ type Msg = {
 
 const channels = useChannelStore()
 const members = useMembersStore()
+
+// scroll target passed from parent (IndexPage -> q-scroll-area)
+const { scrollTarget } = defineProps<{ scrollTarget?: string | Element | undefined }>()
 
 // GUI-only: pick a fixed current user from the mock data
 const CURRENT_USER_ID = 'u1'
@@ -70,7 +84,34 @@ const mockMessages = computed<Msg[]>(() => {
   ]
 })
 
-const visibleMessages = computed(() => mockMessages.value)
+// local reactive copy that we can prepend older messages into
+const list = ref<Msg[]>([])
+
+watch(mockMessages, (arr) => {
+  list.value = [...arr]
+}, { immediate: true })
+
+const visibleMessages = computed(() => list.value)
+
+function onLoad(index: number, done: () => void) {
+  // simulate loading older history and prepend
+  setTimeout(() => {
+    const active: Channel | null = channels.activeChannel
+    if (!active) { done(); return }
+    const author = members.getById('u2') || members.getById('u1') || {
+      id: 'x', name: 'Unknown', nickName: 'unknown', status: 'offline'
+    }
+    const make = (i: number): Msg => ({
+      id: `old-${index}-${i}-${Date.now()}-${Math.random()}`,
+      channelId: active.id,
+      author,
+      text: `Older message #${i} for ${active.channelName}`,
+      time: '07:5' + i,
+    })
+    list.value.splice(0, 0, make(1), make(2), make(3), make(4), make(5), make(6), make(7))
+    done()
+  }, 800)
+}
 
 function getInitials(name: string): string {
   return name
