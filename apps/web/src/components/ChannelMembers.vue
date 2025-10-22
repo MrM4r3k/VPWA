@@ -14,7 +14,7 @@
     <q-scroll-area class="members__scroll">
       <div class="members__list">
         <div
-          v-for="m in channels.activeMembers"
+          v-for="(m, idx) in channels.activeMembers"
           :key="m.id"
           class="member-item"
         >
@@ -26,7 +26,7 @@
           </div>
           <div class="member-info">
             <div class="member-name">{{ m.nickName }}</div>
-            <div class="member-fullname">{{ m.name }}</div>
+            <div class="member-fullname">{{ m.name }}<span v-if="idx === 0" class="admin-suffix"> - admin</span></div>
           </div>
         </div>
       </div>
@@ -132,6 +132,10 @@ const channels = useChannelStore()
   overflow: hidden;
   text-overflow: ellipsis;
   margin-bottom: 2px;
+}
+.admin-suffix {
+  font-size: 12px;
+  color: #9ca3af;
 }
 .member-fullname {
   font-size: 12px;
