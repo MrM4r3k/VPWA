@@ -14,8 +14,7 @@
 
           <!-- Messages Area -->
           <q-scroll-area class="center-messages fit">
-            <div v-for="n in 50" :key="n">Drawer {{ n }} / 50</div>
-            <!-- TODO: MessageList sem -->
+            <MessageList />
           </q-scroll-area>
 
           <!-- Message Composer -->
@@ -36,6 +35,7 @@ import { onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import SideBar from 'src/components/SideBar.vue'
 import ChatHeader from 'src/components/ChatHeader.vue'
+import MessageList from 'src/components/MessageList.vue'
 import MessageComposer from 'src/components/MessageComposer.vue'
 import { useChannelStore } from 'src/stores/channel-store'
 import ChannelMembers from 'src/components/ChannelMembers.vue'
@@ -87,9 +87,24 @@ const rightWidth = '280px'
 .center-messages {
   flex: 1;
   min-height: 0;                   /* dôležité pre q-scroll-area */
-  padding: 16px;
-  padding-top: 73px;   /* 64px header + spacing */
-  padding-bottom: 104px; /* 64-80px composer + spacing */
+  padding: 20px 0;
+  padding-top: 80px;   /* 64px header + spacing */
+  padding-bottom: 112px; /* 64-80px composer + spacing */
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(88, 101, 242, 0.18), transparent),
+    radial-gradient(1000px 500px at 110% 110%, rgba(32, 34, 37, 0.55), transparent),
+    #0b0d10;
+}
+/* scroll area inner padding */
+:deep(.q-scrollarea__content) {
+  padding-left: 20px;
+  padding-right: 20px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+/* custom scrollbar */
+:deep(.q-scrollarea__thumb) {
+  background: rgba(88, 101, 242, 0.5);
 }
 /* responzívne */
 @media (max-width: 1200px) {
