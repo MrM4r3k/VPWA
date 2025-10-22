@@ -17,6 +17,20 @@
             <MessageList />
           </q-scroll-area>
 
+          <!-- Typing Indicator (design only) -->
+          <div class="typing-indicator">
+            <div class="typing-indicator__container">
+              <div class="typing-indicator__inner">
+                <div class="typing-bubbles" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <span class="typing-text"><strong>Alex</strong> is typing…</span>
+              </div>
+            </div>
+          </div>
+
           <!-- Message Composer -->
           <MessageComposer />
         </div>
@@ -94,6 +108,56 @@ const rightWidth = '280px'
     radial-gradient(1200px 600px at 10% -10%, rgba(88, 101, 242, 0.18), transparent),
     radial-gradient(1000px 500px at 110% 110%, rgba(32, 34, 37, 0.55), transparent),
     #0b0d10;
+}
+/* Typing indicator positioning */
+.typing-indicator {
+  position: fixed;
+  left: var(--left, 320px);
+  right: var(--right, 280px);
+  bottom: 112px; /* align above footer height */
+  z-index: 3;
+  display: block;
+  pointer-events: none;
+}
+.typing-indicator__container {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding-left: 20px; /* align with message content */
+}
+.typing-indicator__inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(24, 26, 31, 0.9);
+  border: 1px solid rgba(88, 101, 242, 0.15);
+  border-radius: 12px;
+  padding: 6px 10px;
+  pointer-events: auto;
+}
+.typing-text {
+  font-size: 12px;
+  color: #c9cdd4;
+}
+.typing-bubbles {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.typing-bubbles span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #9ca3af;
+  opacity: 0.5;
+  animation: bubble 1.2s infinite ease-in-out;
+}
+.typing-bubbles span:nth-child(1) { animation-delay: 0s; }
+.typing-bubbles span:nth-child(2) { animation-delay: 0.15s; }
+.typing-bubbles span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes bubble {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+  40% { transform: translateY(-3px); opacity: 1; }
 }
 /* scroll area inner padding */
 :deep(.q-scrollarea__content) {
