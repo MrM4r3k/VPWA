@@ -2,6 +2,14 @@
   <footer v-if="active" class="chat-footer">
     <div class="composer-bar">
       <div class="composer-actions-left">
+        <q-btn 
+          round 
+          unelevated 
+          color="purple" 
+          icon="notifications" 
+          @click="showTestNotif"
+          size="sm"
+        />
       </div>
 
       <q-input
@@ -24,9 +32,11 @@
   
   <script setup lang="ts">
   import { computed,ref } from 'vue'
+  import { useQuasar } from 'quasar'
   import { useChannelStore, type Channel } from 'src/stores/channel-store'
   
   const channels = useChannelStore()
+  const $q = useQuasar()
   const active = computed<Channel | null>(() => channels.activeChannel)
   const text = ref('')
   const cmdMenu = ref(false)
@@ -50,6 +60,18 @@ function submit() {
 }
 function onInput() {
   cmdMenu.value = text.value.trim().startsWith('/')
+}
+
+function showTestNotif() {
+  $q.notify({
+    message: 'Mike',
+    caption: 'Hey, how re u?',
+    color: 'white',
+    textColor: 'white',
+    classes: 'custom-notification',
+    html: true,
+    position: 'bottom-left'
+  })
 }
   </script>
   
