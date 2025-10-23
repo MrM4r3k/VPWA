@@ -1,6 +1,6 @@
 <template>
     <div class="page">
-      <q-card dark bordered style="height: 500px; width: 400px; border-radius: 20px; background: #8b92f936;">
+      <q-card dark bordered style="height: 580px; width: 400px; border-radius: 20px; background: #8b92f936;">
         
         <!-- HEAD -->
         <q-card-section class="row items-center justify-center">
@@ -55,6 +55,14 @@
                 </q-list>
               </q-scroll-area>
 
+              <q-card-section class="row justify-center">
+                <q-btn class="text-red bg-transarent" 
+                label="Go Back"
+                clickable
+                @click="goBack"
+                ></q-btn>
+              </q-card-section>
+
             </q-tab-panel>
             <!-- CREATE -->
             <q-tab-panel name="create">
@@ -97,7 +105,7 @@
                         :key="m.id"
                         clickable 
                         v-ripple
-                        
+                        @click="toggleMemberSelection(m.id)"
                     >
                         <q-item-section avatar>
                             <q-avatar size="40px" color="primary" text-color="white">
@@ -113,14 +121,57 @@
                                 @{{ m.nickName }}
                             </q-item-label>
                         </q-item-section>
-                            
-                        <q-item-section >
 
+                        <q-item-section side>
+                            <q-checkbox 
+                                v-model="selectedMembers" 
+                                :val="m.id"
+                                color="primary"
+                                @click.stop
+                            />
                         </q-item-section>
 
                     </q-item>
                 </q-list>
               </q-scroll-area>
+
+              <q-card-section class="row items-center justify-center">
+
+                <q-option-group
+                  v-model="panel"
+                  inline
+                  dense
+                  :options="[
+                    { label: 'Private', value: 'private' },
+                    { label: 'Public', value: 'public' }
+                  ]"
+                />
+              </q-card-section>
+              
+              <q-card-section class="row items-center justify-center">
+                <q-btn 
+                  class="text-white bg-transarent" 
+                  :label="`Create${selectedMembers.length > 0 ? ` (${selectedMembers.length})` : ''}`"
+                  clickable
+                  @click="createGroup"
+                  :disable="selectedMembers.length < 2 || !panel"
+                ></q-btn>
+                <q-btn class="text-red bg-transarent" 
+                  label="Go Back"
+                  clickable
+                  @click="goBack"
+                ></q-btn>
+              </q-card-section>
+
+            
+
+            <!-- Validation Status -->
+            <div v-if="selectedMembers.length < 2 || !panel" class="q-pa-sm">
+              <div class="text-caption text-grey-5">
+                <q-icon name="info" size="xs" class="q-mr-xs" />
+                Required: Group name, at least 2 members, and privacy setting
+              </div>
+            </div>
 
             </q-tab-panel>
           </q-tab-panels>
@@ -141,8 +192,10 @@
 
   const tab = ref<'search' | 'create'>('search')
   const search = ref('');
+  const panel = ref('');
   const router = useRouter();
   const text = ref('')
+  const selectedMembers = ref<string[]>([])
 
   const filtered = computed(() => {
     const q = search.value.trim().toLowerCase()
@@ -155,10 +208,10 @@
   const allMembers = computed<Member[]>(() => Object.values(ms.byId))
   
   const filteredMembers = computed<Member[]>(() => {                        
-  const q = search.value.trim().toLowerCase()
-  if (!q) return allMembers.value
-  return allMembers.value.filter(m =>
-    m.name.toLowerCase().includes(q) || m.nickName.toLowerCase().includes(q)
+    const q = search.value.trim().toLowerCase()
+    if (!q) return allMembers.value
+    return allMembers.value.filter(m =>
+        m.name.toLowerCase().includes(q) || m.nickName.toLowerCase().includes(q)
   )
   })
 
@@ -171,6 +224,26 @@
     void router.push({ name: 'chat', params: { channelId: id } });
   }
   
+  function goBack(){
+    void router.push('/app');
+  }
+
+  function toggleMemberSelection(memberId: string) {
+    const index = selectedMembers.value.indexOf(memberId);
+    if (index > -1) {
+      selectedMembers.value.splice(index, 1);
+    } else {
+      selectedMembers.value.push(memberId);
+    }
+  }
+
+  function createGroup() {
+    if (selectedMembers.value.length >= 2 && panel.value) {
+      // potom prerobit na vytvorenie
+      goBack();
+    }
+  }
+
   </script>
   
   <style scoped>
