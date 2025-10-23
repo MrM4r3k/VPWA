@@ -34,7 +34,7 @@
               
               <q-separator dark inset />
               <!-- CHANNELS -->
-              <q-scroll-area style="height: 300px; max-width: 350px; padding: 20px;">
+              <q-scroll-area style="height: 340px; max-width: 350px; padding: 20px;">
                 <q-list padding separator>
                     <q-item
                     v-for="c in filtered"
