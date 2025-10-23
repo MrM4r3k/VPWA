@@ -15,6 +15,21 @@
 
         <!-- Akčné ikony -->
         <div class="row items-center q-gutter-xs">
+          <!-- Notification Switch -->
+          <q-btn
+            flat
+            round
+            size="sm"
+            :color="notificationColor"
+            :icon="notificationIcon"
+            @click="toggleNotification"
+            class="hover-scale"
+            :style="notificationStyle"
+          >
+            <q-tooltip class="bg-grey-8 text-white" :offset="[0, 8]">
+              {{ notificationTooltip }}
+            </q-tooltip>
+          </q-btn>
           <q-btn
             flat
             round
@@ -144,6 +159,44 @@
   const router = useRouter();
   const store = useChannelStore();
   const search = ref('');
+  
+  // Notification switch state
+  const notificationState = ref(0); // 0: normal, 1: mentions only, 2: muted
+  
+  const notificationIcon = computed(() => {
+    switch (notificationState.value) {
+      case 0: return 'notifications'; // Normal notifications
+      case 1: return 'notifications_active'; // Mentions only
+      case 2: return 'notifications_off'; // Muted
+      default: return 'notifications';
+    }
+  });
+  
+  const notificationTooltip = computed(() => {
+    switch (notificationState.value) {
+      case 0: return 'All notifications';
+      case 1: return 'Mentions only';
+      case 2: return 'Notifications muted';
+      default: return 'All notifications';
+    }
+  });
+  
+  const notificationColor = computed(() => {
+    switch (notificationState.value) {
+      case 0: return 'primary'; // Normal notifications - app primary color
+      case 1: return 'warning'; // Mentions only - warning accent
+      case 2: return 'red'; // Muted - danger
+      default: return 'primary';
+    }
+  });
+  
+  const notificationStyle = computed(() => {
+    return 'background: rgba(74, 78, 132, 0.25)';
+  });
+  
+  function toggleNotification() {
+    notificationState.value = (notificationState.value + 1) % 3;
+  }
 
   const filtered = computed(() => {
     const q = search.value.trim().toLowerCase()
