@@ -1,13 +1,14 @@
 <template>
   <q-page class="chat-shell">
+
     <div class="grid" :style="{ '--left': leftWidth, '--right': rightWidth }">
       <!-- LEFT: Sidebar -->
-      <aside class="col-left">
+      <aside class="col-left" :class="{ 'col-left--hidden': !sidebarVisible, 'mobile-hidden': isMobile && activePanel!=='left' }">
         <SideBar />
       </aside>
 
       <!-- CENTER: Chat -->
-      <main class="col-center">
+      <main class="col-center" :class="{ 'mobile-hidden': isMobile && activePanel!=='chat' }">
         <div class="center-inner">
           <!-- Chat Header -->
           <ChatHeader />
@@ -37,7 +38,7 @@
       </main>
 
       <!-- RIGHT: Members -->
-      <aside class="col-right">
+      <aside class="col-right" :class="{ 'col-right--hidden': !membersVisible, 'mobile-hidden': isMobile && activePanel!=='right' }">
         <ChannelMembers />
       </aside>
     </div>
@@ -45,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, watch, ref, onBeforeUnmount } from 'vue'
+import { onMounted, watch, ref, onBeforeUnmount, computed, provide } from 'vue'
 import { QScrollArea } from 'quasar'
 import { useRoute } from 'vue-router'
 import SideBar from 'src/components/SideBar.vue'
@@ -58,17 +59,52 @@ import ChannelMembers from 'src/components/ChannelMembers.vue'
 const route = useRoute()
 const ch = useChannelStore()
 
+// Panel visibility (desktop/tablet)
+const sidebarVisible = ref(true)
+const membersVisible = ref(true)
+
+// Mobile single active panel: 'left' | 'chat' | 'right'
+const activePanel = ref<'left' | 'chat' | 'right'>('chat')
+
+// Screen size detection
+const isMobile = ref(false)
+const isTablet = ref(false)
+
+const checkScreenSize = () => {
+  const width = window.innerWidth
+  isMobile.value = width <= 768
+  isTablet.value = width > 768 && width <= 1200
+  
+  // Auto-hide panels on smaller screens
+  if (isMobile.value) {
+    sidebarVisible.value = true
+    membersVisible.value = true
+    activePanel.value = 'chat'
+  } else if (isTablet.value) {
+    membersVisible.value = false
+  }
+}
+
+// desktop toggles removed; panels remain controlled by layout and mobile activePanel
+
+// Dynamic column widths based on panel visibility
+const leftWidth = computed(() => sidebarVisible.value ? '320px' : '0px')
+const rightWidth = computed(() => membersVisible.value ? '280px' : '0px')
+
+// Provide mobile panel controls to children
+provide('isMobile', isMobile)
+provide('activePanel', activePanel)
+provide('setActivePanel', (panel: 'left' | 'chat' | 'right') => { activePanel.value = panel })
+
 // pri vstupe aj pri zmene URL nastav aktívny kanál
 const activateFromRoute = () => {
   const id = route.params.channelId as string | undefined
   if (id) ch.openChannel(id)
+  if (isMobile.value) activePanel.value = 'chat'
 }
 onMounted(activateFromRoute)
 watch(() => route.params.channelId, activateFromRoute)
 
-// šírka stĺpcov
-const leftWidth = '320px'
-const rightWidth = '280px'
 
 // Expose q-scroll-area container element for QInfiniteScroll target
 const sa = ref<QScrollArea | null>(null)
@@ -79,12 +115,19 @@ const attachScrollTarget = () => {
   saContainer.value = el
 }
 onMounted(() => {
+  checkScreenSize()
   attachScrollTarget()
   // also re-attach on possible layout changes
-  window.addEventListener('resize', attachScrollTarget)
+  window.addEventListener('resize', () => {
+    checkScreenSize()
+    attachScrollTarget()
+  })
 })
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', attachScrollTarget)
+  window.removeEventListener('resize', () => {
+    checkScreenSize()
+    attachScrollTarget()
+  })
 })
 </script>
 
@@ -92,6 +135,44 @@ onBeforeUnmount(() => {
 .chat-shell {
   height: 100vh;
   overflow: hidden;
+  position: relative;
+}
+
+/* Removed desktop toggle buttons (were overlaying the logo) */
+
+/* Mobile switcher */
+.mobile-switcher {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1002;
+  display: flex;
+  gap: 4px;
+  background: rgba(11, 13, 16, 0.95);
+  border: 1px solid rgba(88, 101, 242, 0.3);
+  border-radius: 20px;
+  padding: 4px 6px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.mobile-switcher .q-btn {
+  background: rgba(74, 78, 132, 0.2);
+  transition: all 0.2s ease;
+  width: 40px;
+  height: 40px;
+}
+
+.mobile-switcher .q-btn:hover {
+  background: rgba(88, 101, 242, 0.4);
+  transform: scale(1.1);
+}
+
+.mobile-switcher .q-btn[unelevated] {
+  background: rgba(88, 101, 242, 0.8);
+  color: white;
+  box-shadow: 0 2px 8px rgba(88, 101, 242, 0.4);
 }
 
 /* 3-stĺpcový grid: ľavý | stred | pravý */
@@ -100,6 +181,21 @@ onBeforeUnmount(() => {
   display: grid;
   overflow: hidden;
   grid-template-columns: var(--left, 320px) 1fr var(--right, 280px);
+  transition: grid-template-columns 0.3s ease;
+}
+
+/* Panel hiding */
+.col-left--hidden {
+  display: none;
+}
+
+.col-right--hidden {
+  display: none;
+}
+
+/* Mobile single panel mode */
+.mobile-hidden {
+  display: none !important;
 }
 
 /* stred – vlastný "mini layout" */
@@ -132,7 +228,7 @@ onBeforeUnmount(() => {
   position: fixed;
   left: var(--left, 320px);
   right: var(--right, 280px);
-  bottom: 112px; /* align above footer height */
+  bottom: 80px; /* Reduced from 100px to move much closer to input */
   z-index: 3;
   display: block;
   pointer-events: none;
@@ -188,15 +284,54 @@ onBeforeUnmount(() => {
 :deep(.q-scrollarea__thumb) {
   background: rgba(88, 101, 242, 0.5);
 }
-/* responzívne */
+/* Responsive breakpoints */
 @media (max-width: 1200px) {
-  .grid { grid-template-columns: var(--left, 320px) 1fr; }
-  .col-right { display: none; }
+  .typing-indicator {
+    right: var(--right, 0px);
+  }
 }
 
-@media (max-width: 600px) {
-  .grid { grid-template-columns: 1fr; }
-  .col-left { display: none; }
-  .col-right { display: none; }
+@media (min-width: 769px) {
+  .typing-indicator {
+    bottom: 112px; /* Desktop: proper position above input */
+  }
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .col-left, .col-right {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1001;
+  }
+  
+  .col-center {
+    width: 100vw !important;
+  }
+  
+  .typing-indicator {
+    left: 0;
+    right: 0;
+  }
+  .center-messages {
+    padding-top: 60px; /* Reduced padding for mobile */
+    padding-bottom: 110px; /* Increased from 100px for more clearance */
+  }
+}
+
+@media (max-width: 480px) {
+  .center-messages {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .typing-indicator__container {
+    padding-left: 12px;
+  }
 }
 </style>

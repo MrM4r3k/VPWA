@@ -120,5 +120,48 @@ function showTestNotif() {
   .composer-input {
     min-height: 36px;
   }
+
+  /* Responsive design */
+  @media (max-width: 1200px) {
+    .chat-footer {
+      right: 0; /* Remove right sidebar offset */
+    }
+  }
+
+  @media (max-width: 768px) {
+    .chat-footer {
+      left: 0; /* Remove left sidebar offset */
+      right: 0;
+      padding: 8px 12px;
+    }
+    
+    .composer-bar {
+      padding: 4px 8px;
+      gap: 6px;
+    }
+    
+    .composer-input {
+      min-height: 32px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .chat-footer {
+      padding: 6px 8px;
+    }
+    
+    .composer-bar {
+      padding: 3px 6px;
+      gap: 4px;
+    }
+    
+    .composer-input {
+      min-height: 28px;
+    }
+    
+    .composer-actions-left, .composer-actions-right {
+      gap: 4px;
+    }
+  }
 </style>
   

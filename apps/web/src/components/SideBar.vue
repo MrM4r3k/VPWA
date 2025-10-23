@@ -150,7 +150,7 @@
 </template>
   
   <script setup lang="ts">
-  import { computed, ref } from 'vue';
+  import { computed, ref, inject, type Ref } from 'vue';
   import { useChannelStore } from '../stores/channel-store';
   import { useRouter } from 'vue-router';
   
@@ -222,6 +222,9 @@
   function open(id: string) {
     // prejdi na chat route: /app/c/:channelId
     void router.push({ name: 'chat', params: { channelId: id } });
+    const isMobile = inject<Ref<boolean>>('isMobile')
+    const setActivePanel = inject<((p: 'left'|'chat'|'right') => void)>('setActivePanel')
+    if (isMobile?.value && setActivePanel) setActivePanel('chat')
   }
   
 
@@ -251,6 +254,9 @@
     z-index: 1000;
     border-right: 1px solid rgba(88, 101, 242, 0.2);
   }
+@media (max-width: 768px) {
+  .sidebar { width: 100vw; }
+}
   .sidebar__header {
     border-bottom: 1px solid rgba(88, 101, 242, 0.2);
     padding: 12px 16px;
@@ -372,15 +378,5 @@
     padding: 40px 20px;
     color: #9ca3af;
     text-align: center;
-  }
-  /* Responsive správanie (mobil – voliteľné) */
-  @media (max-width: 500px) {
-    .sidebar {
-      transform: translateX(-100%);
-      transition: transform 0.3s ease;
-    }
-    .sidebar.open {
-      transform: translateX(0);
-    }
   }
   </style>

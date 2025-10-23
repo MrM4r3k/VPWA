@@ -1,6 +1,8 @@
 <template>
     <header class="chat-header">
       <q-toolbar class="row items-center q-gutter-md">  
+        <!-- Mobile back to channels -->
+        <q-btn v-if="isMobile" flat round size="sm" color="white" icon="arrow_back" class="btn-ghost" @click="goBackToChannels" />
         <q-toolbar-title class="col">
           <div style="font-size:18px; font-weight:600; color:#8b93f9; line-height:1.1">
             {{ active.channelName }}
@@ -13,7 +15,7 @@
         <!-- Action Buttons -->
         <div class="header-right">
           <!-- Invitation buttons -->
-          <template v-if="active.isInvited">
+          <template v-if="active.isInvited && !isMobile">
             <q-btn
               flat
               dense
@@ -36,7 +38,7 @@
             </q-btn>
           </template>
           <!-- leave button -->
-          <template v-else>
+          <template v-else-if="!isMobile">
             <q-btn
               flat
               dense
@@ -49,19 +51,30 @@
               <span class="btn-text">Leave Group</span>
             </q-btn>
           </template>
+          <!-- Mobile open members (positioned on far right) -->
+          <q-btn v-if="isMobile" flat round size="sm" color="white" icon="info" class="btn-ghost mobile-info-btn" @click="openMembers" />
         </div>
       </q-toolbar>
     </header>
   </template>
   
   <script setup lang="ts">
-  import { computed, watchEffect } from 'vue'
+  import { computed, watchEffect, inject, type Ref } from 'vue'
   import { useRoute } from 'vue-router'
   import { useChannelStore, type Channel } from 'src/stores/channel-store' 
   
   const channels = useChannelStore()
   const members = computed(() => channels.activeMembers)
   const route = useRoute()
+  const isMobile = inject<Ref<boolean>>('isMobile')
+  const setActivePanel = inject<((p: 'left'|'chat'|'right') => void)>('setActivePanel')
+
+  function goBackToChannels() {
+    if (isMobile?.value && setActivePanel) setActivePanel('left')
+  }
+  function openMembers() {
+    if (isMobile?.value && setActivePanel) setActivePanel('right')
+  }
   
   // Bezpečný fallback, aby template nikdy nedostal null/undefined
   const FALLBACK: Channel = {
@@ -233,6 +246,65 @@
 @keyframes bubble {
   0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
   40% { transform: translateY(-3px); opacity: 1; }
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+  .chat-header {
+    right: 0; /* Remove right sidebar offset */
+  }
+}
+
+@media (max-width: 768px) {
+  .chat-header {
+    left: 0; /* Remove left sidebar offset */
+    right: 0;
+    padding: 0 12px;
+  }
+  
+  .header-right {
+    gap: 4px;
+  }
+  
+  .btn-text {
+    font-size: 12px;
+  }
+  
+  .leave-group-btn, .accept-btn, .decline-btn {
+    padding: 6px 12px;
+    min-height: 32px;
+  }
+  
+  .mobile-info-btn {
+    margin-left: auto;
+    margin-right: 0; /* Remove extra margin to match back arrow spacing */
+  }
+}
+
+@media (max-width: 480px) {
+  .chat-header {
+    padding: 0 8px;
+  }
+  
+  .q-toolbar-title {
+    font-size: 16px;
+  }
+  
+  .header-right {
+    flex-direction: row;
+    gap: 4px;
+  }
+  
+  .leave-group-btn, .accept-btn, .decline-btn {
+    padding: 4px 8px;
+    min-height: 28px;
+    font-size: 11px;
+  }
+  
+  .mobile-info-btn {
+    margin-left: auto;
+    margin-right: 8px;
+  }
 }
 </style>
   
