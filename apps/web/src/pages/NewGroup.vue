@@ -164,14 +164,14 @@
                   color="#8b93f9"
                   :label="`Create Group${selectedMembers.length > 0 ? ` (${selectedMembers.length})` : ''}`"
                   @click="createGroup"
-                  :disable="selectedMembers.length < 2 || !panel"
+                  :disable="selectedMembers.length < 2 || !panel || !text"
                   unelevated
                   class="btn create"
                 />
               </div>
 
               <q-banner 
-                v-if="selectedMembers.length < 2 || !panel" 
+                v-if="selectedMembers.length < 2 || !panel || !text" 
                 class="validation mt-3"
                 rounded
               >
@@ -207,7 +207,9 @@ const selectedMembers = ref<string[]>([])
 
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase()
-  return q ? store.channels.filter(c => c.channelName.toLowerCase().includes(q)) : store.channels
+  // len public groups
+  const publicChannels = store.channels.filter(c => !c.isPrivate)
+  return q ? publicChannels.filter(c => c.channelName.toLowerCase().includes(q)) : publicChannels
 })
 
 const allMembers = computed<Member[]>(() => Object.values(ms.byId))
