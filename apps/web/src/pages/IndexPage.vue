@@ -33,15 +33,15 @@
           </div>
 
           <!-- Message Composer -->
-          <MessageComposer />
+          <MessageComposer @show-members="handleShowMembers" />
         </div>
       </main>
-
-      <!-- RIGHT: Members -->
-      <!-- <aside class="col-right" :class="{ 'col-right--hidden': !membersVisible, 'mobile-hidden': isMobile && activePanel!=='right' }">
-        <ChannelMembers />
-      </aside> -->
     </div>
+
+    <!-- Members List Popup -->
+    <ChannelMembers
+      v-model:visible="showMembersPopup" 
+    />
   </q-page>
 </template>
 
@@ -54,13 +54,16 @@ import ChatHeader from 'src/components/ChatHeader.vue'
 import MessageList from 'src/components/MessageList.vue'
 import MessageComposer from 'src/components/MessageComposer.vue'
 import { useChannelStore } from 'src/stores/channel-store'
-//import ChannelMembers from 'src/components/ChannelMembers.vue'
+import ChannelMembers from 'src/components/ChannelMembers.vue'
 
 const route = useRoute()
 const ch = useChannelStore()
 
 // Panel visibility (desktop/tablet)
 const sidebarVisible = ref(true)
+
+// Members popup state
+const showMembersPopup = ref(false)
 
 // Mobile single active panel: 'left' | 'chat'
 const activePanel = ref<'left' | 'chat'>('chat')
@@ -124,6 +127,12 @@ onBeforeUnmount(() => {
     attachScrollTarget()
   })
 })
+
+// Handle show members popup
+function handleShowMembers() {
+  showMembersPopup.value = true
+}
+
 </script>
 
 <style scoped>

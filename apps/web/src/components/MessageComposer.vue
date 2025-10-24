@@ -44,10 +44,19 @@
   
   const emit = defineEmits<{
   (e: 'submit', payload: { text: string; channelId: string }): void
+  (e: 'showMembers'): void
 }>()
 
   function onEnter(e: KeyboardEvent) {
   if (e.shiftKey) return // povolíme nový riadok
+  
+  // Check for /list command before submitting
+  if (text.value.trim() === '/list') {
+    emit('showMembers')
+    text.value = ''
+    return
+  }
+  
   submit()
 }
 function submit() {
@@ -60,6 +69,12 @@ function submit() {
 }
 function onInput() {
   cmdMenu.value = text.value.trim().startsWith('/')
+  
+  // Check for /list command
+  if (text.value.trim() === '/list') {
+    emit('showMembers')
+    text.value = '' // Clear the input after showing popup
+  }
 }
 
 function showTestNotif() {
