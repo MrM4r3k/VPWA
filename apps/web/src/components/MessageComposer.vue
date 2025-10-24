@@ -80,7 +80,7 @@ function showTestNotif() {
     position: fixed;
     bottom: 0;
     left: 320px; /* Account for left sidebar width */
-    right: 280px; /* Account for right sidebar width */
+    right: 0; /* No right sidebar */
     background: rgba(11, 13, 16, 0.95);
     backdrop-filter: blur(8px);
     display: flex;
@@ -122,11 +122,6 @@ function showTestNotif() {
   }
 
   /* Responsive design */
-  @media (max-width: 1200px) {
-    .chat-footer {
-      right: 0; /* Remove right sidebar offset */
-    }
-  }
 
   @media (max-width: 768px) {
     .chat-footer {

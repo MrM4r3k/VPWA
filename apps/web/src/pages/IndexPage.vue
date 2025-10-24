@@ -1,7 +1,7 @@
 <template>
   <q-page class="chat-shell">
 
-    <div class="grid" :style="{ '--left': leftWidth, '--right': rightWidth }">
+    <div class="grid" :style="{ '--left': leftWidth }">
       <!-- LEFT: Sidebar -->
       <aside class="col-left" :class="{ 'col-left--hidden': !sidebarVisible, 'mobile-hidden': isMobile && activePanel!=='left' }">
         <SideBar />
@@ -38,9 +38,9 @@
       </main>
 
       <!-- RIGHT: Members -->
-      <aside class="col-right" :class="{ 'col-right--hidden': !membersVisible, 'mobile-hidden': isMobile && activePanel!=='right' }">
+      <!-- <aside class="col-right" :class="{ 'col-right--hidden': !membersVisible, 'mobile-hidden': isMobile && activePanel!=='right' }">
         <ChannelMembers />
-      </aside>
+      </aside> -->
     </div>
   </q-page>
 </template>
@@ -54,17 +54,16 @@ import ChatHeader from 'src/components/ChatHeader.vue'
 import MessageList from 'src/components/MessageList.vue'
 import MessageComposer from 'src/components/MessageComposer.vue'
 import { useChannelStore } from 'src/stores/channel-store'
-import ChannelMembers from 'src/components/ChannelMembers.vue'
+//import ChannelMembers from 'src/components/ChannelMembers.vue'
 
 const route = useRoute()
 const ch = useChannelStore()
 
 // Panel visibility (desktop/tablet)
 const sidebarVisible = ref(true)
-const membersVisible = ref(true)
 
-// Mobile single active panel: 'left' | 'chat' | 'right'
-const activePanel = ref<'left' | 'chat' | 'right'>('chat')
+// Mobile single active panel: 'left' | 'chat'
+const activePanel = ref<'left' | 'chat'>('chat')
 
 // Screen size detection
 const isMobile = ref(false)
@@ -78,10 +77,7 @@ const checkScreenSize = () => {
   // Auto-hide panels on smaller screens
   if (isMobile.value) {
     sidebarVisible.value = true
-    membersVisible.value = true
     activePanel.value = 'chat'
-  } else if (isTablet.value) {
-    membersVisible.value = false
   }
 }
 
@@ -89,12 +85,11 @@ const checkScreenSize = () => {
 
 // Dynamic column widths based on panel visibility
 const leftWidth = computed(() => sidebarVisible.value ? '320px' : '0px')
-const rightWidth = computed(() => membersVisible.value ? '280px' : '0px')
 
 // Provide mobile panel controls to children
 provide('isMobile', isMobile)
 provide('activePanel', activePanel)
-provide('setActivePanel', (panel: 'left' | 'chat' | 'right') => { activePanel.value = panel })
+provide('setActivePanel', (panel: 'left' | 'chat') => { activePanel.value = panel })
 
 // pri vstupe aj pri zmene URL nastav aktívny kanál
 const activateFromRoute = () => {
@@ -175,12 +170,12 @@ onBeforeUnmount(() => {
   box-shadow: 0 2px 8px rgba(88, 101, 242, 0.4);
 }
 
-/* 3-stĺpcový grid: ľavý | stred | pravý */
+/* 2-stĺpcový grid: ľavý | stred */
 .grid {
   height: 100%;
   display: grid;
   overflow: hidden;
-  grid-template-columns: var(--left, 320px) 1fr var(--right, 280px);
+  grid-template-columns: var(--left, 320px) 1fr;
   transition: grid-template-columns 0.3s ease;
 }
 
@@ -189,9 +184,6 @@ onBeforeUnmount(() => {
   display: none;
 }
 
-.col-right--hidden {
-  display: none;
-}
 
 /* Mobile single panel mode */
 .mobile-hidden {
@@ -227,7 +219,7 @@ onBeforeUnmount(() => {
 .typing-indicator {
   position: fixed;
   left: var(--left, 320px);
-  right: var(--right, 280px);
+  right: 0;
   bottom: 80px; /* Reduced from 100px to move much closer to input */
   z-index: 3;
   display: block;
@@ -285,11 +277,6 @@ onBeforeUnmount(() => {
   background: rgba(88, 101, 242, 0.5);
 }
 /* Responsive breakpoints */
-@media (max-width: 1200px) {
-  .typing-indicator {
-    right: var(--right, 0px);
-  }
-}
 
 @media (min-width: 769px) {
   .typing-indicator {
@@ -302,7 +289,7 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr !important;
   }
   
-  .col-left, .col-right {
+  .col-left {
     position: fixed !important;
     top: 0;
     left: 0;

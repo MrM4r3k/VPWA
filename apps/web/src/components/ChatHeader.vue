@@ -52,7 +52,7 @@
             </q-btn>
           </template>
           <!-- Mobile open members (positioned on far right) -->
-          <q-btn v-if="isMobile" flat round size="sm" color="white" icon="info" class="btn-ghost mobile-info-btn" @click="openMembers" />
+          <!-- <q-btn v-if="isMobile" flat round size="sm" color="white" icon="info" class="btn-ghost mobile-info-btn" @click="openMembers" /> -->
         </div>
       </q-toolbar>
     </header>
@@ -67,14 +67,14 @@
   const members = computed(() => channels.activeMembers)
   const route = useRoute()
   const isMobile = inject<Ref<boolean>>('isMobile')
-  const setActivePanel = inject<((p: 'left'|'chat'|'right') => void)>('setActivePanel')
+  const setActivePanel = inject<((p: 'left'|'chat') => void)>('setActivePanel')
 
   function goBackToChannels() {
     if (isMobile?.value && setActivePanel) setActivePanel('left')
   }
-  function openMembers() {
-    if (isMobile?.value && setActivePanel) setActivePanel('right')
-  }
+  // function openMembers() {
+  //   if (isMobile?.value && setActivePanel) setActivePanel('right')
+  // }
   
   // Bezpečný fallback, aby template nikdy nedostal null/undefined
   const FALLBACK: Channel = {
@@ -118,7 +118,7 @@
   position: fixed;
   top: 0;
   left: 320px; /* Account for left sidebar width */
-  right: 280px; /* Account for right sidebar width */
+  right: 0; /* No right sidebar */
   z-index: 3;
   background: rgba(11, 13, 16, 0.95);
   backdrop-filter: blur(8px);
@@ -249,11 +249,6 @@
 }
 
 /* Responsive design */
-@media (max-width: 1200px) {
-  .chat-header {
-    right: 0; /* Remove right sidebar offset */
-  }
-}
 
 @media (max-width: 768px) {
   .chat-header {
