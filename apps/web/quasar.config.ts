@@ -25,7 +25,7 @@ export default defineConfig((/* ctx */) => {
       // 'themify',
       // 'line-awesome',
       // 'roboto-font-latin-ext', // this or either 'roboto-font', NEVER both!
-
+      'mdi-v6',
       'roboto-font', // optional, you are not bound to it
       'material-icons', // optional, you are not bound to it
     ],
@@ -98,6 +98,7 @@ export default defineConfig((/* ctx */) => {
       // directives: [],
 
       // Quasar plugins
+      iconSet: 'mdi-v6',
       plugins: ['Notify'],
     },
 

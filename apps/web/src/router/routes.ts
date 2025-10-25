@@ -24,8 +24,8 @@ const routes: RouteRecordRaw[] = [
     path: '/app',
     component: () => import('layouts/MainLayout.vue'),
     children: [
-      { path: '', name: 'welcome', component: () => import('pages/WelcomePage.vue'), meta: { showMembers: false } },
-      { path: 'c/:channelId', name: 'chat', component: () => import('pages/IndexPage.vue'), meta: { showMembers: true } },
+      { path: '', name: 'welcome', component: () => import('pages/WelcomePage.vue') },
+      { path: 'c/:channelId', name: 'chat', component: () => import('pages/IndexPage.vue') },
     ],
     meta: { requiresAuth: true },
   },

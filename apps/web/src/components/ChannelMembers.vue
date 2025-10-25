@@ -35,6 +35,7 @@
             <q-item-section>
               <q-item-label class="text-white">
                 {{ m.name }}
+                <q-icon v-if="isOwner(m)" class="text-amber" name="mdi-crown" size="20px" />
               </q-item-label>
               <q-item-label caption class="text-grey-5">
                 @{{ m.nickName }}
@@ -84,6 +85,8 @@ const filteredMembers = computed<Member[]>(() => {
   )
 })
 
+const ownerId = computed(() => channels.activeChannel?.ownerId ?? null)
+
 function initials(name: string) {
   const p = name.trim().split(/\s+/)
   return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase()
@@ -103,6 +106,10 @@ function onHide() {
   search.value = ''
   selectedMembers.value = []
   emit('update:visible', false)
+}
+
+function isOwner(m: Member) {
+  return ownerId.value !== null && m.id === ownerId.value
 }
 
 // Watch for visibility changes to reset form
