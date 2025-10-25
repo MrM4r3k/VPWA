@@ -38,7 +38,7 @@
                 <q-icon v-if="isOwner(m)" class="text-amber" name="mdi-crown" size="20px" />
               </q-item-label>
               <q-item-label caption class="text-grey-5">
-                @{{ m.nickName }}
+                @{{ m.nickName }} - {{ m.status }}
               </q-item-label>
             </q-item-section>
 
