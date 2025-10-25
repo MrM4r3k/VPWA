@@ -137,7 +137,9 @@ watch(() => props.visible, (newVal) => {
   max-height: 80vh;
   min-width: 375px;
   border-radius: 20px;
-  background: #8b92f936;
+  background: radial-gradient(250px 200px at 10% -13%, rgba(88, 101, 242, 0.25), transparent),
+              radial-gradient(100px 101px at 900% 70%, rgba(32, 34, 37, 0.3), transparent),
+              #0b0d1054 !important;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
   overflow: hidden;
 }
