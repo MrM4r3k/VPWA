@@ -30,6 +30,7 @@
               {{ notificationTooltip }}
             </q-tooltip>
           </q-btn>
+          <!--Vytvorenie novej skupiny-->
           <q-btn
             flat
             round
@@ -40,6 +41,7 @@
             class="hover-scale"
             style="background: rgba(74, 78, 132, 0.25)"
           />
+          <!--Stav-->
           <q-btn flat round size="sm" color="white" icon="person" style="background: rgba(74, 78, 132, 0.25)">
             <q-menu 
             transition-show="rotate" 
@@ -74,6 +76,7 @@
               </q-list>
             </q-menu>
           </q-btn>
+          <!--Logout-->
           <q-btn 
             flat 
             round 
@@ -126,13 +129,16 @@
             @click="open(c.id)"
             :class="['channel-item', store.activeChannelId === c.id ? 'channel-item--active' : '']"
           >
+          <!-- Private / Public groups-->
             <div class="channel-icon">
               <q-icon :name="c.isPrivate ? 'lock' : 'tag'" size="16px" />
             </div>
             <div class="channel-name">{{ c.channelName }}</div>
+            <!--Invite-->
             <div v-if="c.isInvited" class="invitation-badge">
               Invitation
             </div>
+            <!--Neprečítané správy-->
             <div v-else-if="c.unread && c.unread > 0" class="unread-badge">
               {{ c.unread > 99 ? '99+' : c.unread }}
             </div>
@@ -194,13 +200,15 @@
     return 'background: rgba(74, 78, 132, 0.25)';
   });
   
+  //Mení stav notifikácie medzi 3 možnosťami
   function toggleNotification() {
     notificationState.value = (notificationState.value + 1) % 3;
   }
 
+  //Filtrovanie - pozvánka do kanála je prvá
   const filtered = computed(() => {
     const q = search.value.trim().toLowerCase()
-    let channels = store.channels
+    let channels = store.channels //let vytvára premennú, ktorú je možnosť neskôr zmeniť
     
     // Search filter
     if (q) {
@@ -223,7 +231,7 @@
     // prejdi na chat route: /app/c/:channelId
     void router.push({ name: 'chat', params: { channelId: id } });
     const isMobile = inject<Ref<boolean>>('isMobile')
-    const setActivePanel = inject<((p: 'left'|'chat'|'right') => void)>('setActivePanel')
+    const setActivePanel = inject<((p: 'left'|'chat') => void)>('setActivePanel')
     if (isMobile?.value && setActivePanel) setActivePanel('chat')
   }
   

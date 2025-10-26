@@ -66,17 +66,17 @@ export const useChannelStore = defineStore('channels', {
     ] as Channel[],
     activeChannelId: null as string | null,
   }),
-  getters: {
+  getters: { //Čítanie dát
     activeChannel(state): Channel | null {
-      return state.channels.find(c => c.id === state.activeChannelId) ?? null
+      return state.channels.find(c => c.id === state.activeChannelId) ?? null //Prehľadá zoznam kanálov a vráti ten, ktorého id sa zhoduje s aktívnym.
     },
     activeMembers(): Member[] {
-      const ms = useMembersStore()
-      const ids = this.activeChannel?.memberIds ?? []
-      return ms.getMany(ids)
+      const ms = useMembersStore() //Inštancia members-store
+      const ids = this.activeChannel?.memberIds ?? [] //Ak je aktívny kanál, vytiahne z neho pole memberIds
+      return ms.getMany(ids) //Vráti celé pole členov aktuálneho kanála
     },
   },
-  actions: {
-    openChannel(id: string) { this.activeChannelId = id },
+  actions: {//Menia dáta
+    openChannel(id: string) { this.activeChannelId = id }, //Zmena aktívneho kanála
   },
 })

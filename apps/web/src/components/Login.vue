@@ -12,6 +12,7 @@
         <q-card-section class="card-title">Sign in to your account</q-card-section>
 
         <q-card-section>
+          <!--q-form spúšťa validačne pravidlá detských komponentov, .prevent zabráni reloadu stránky-->
           <q-form @submit.prevent="onSubmit" @reset="onReset" ref="formRef">
             <q-input
               v-model="form.email"
@@ -69,14 +70,17 @@ import { QForm } from 'quasar';
 import logoUrl from 'src/assets/logo.png';
 import 'src/css/auth-theme.scss';
 
+//Meno komponentu
 defineOptions({
   name: 'LoginPage',
 });
 
 const router = useRouter();
+//Drží odkaz na <q-form>, aby sme vedeli volať validate()
 const formRef = ref<InstanceType<typeof QForm> | null>(null);
 const showPwd = ref(false);
 
+//Vstupné hodnoty formulára
 const form = reactive({
   email: '',
   password: '',
@@ -89,6 +93,7 @@ const rules = {
 };
 
 async function onSubmit() {
+  //Prebehne všetky rules v input
   const ok = await formRef.value?.validate();
   if (!ok) return;
 
@@ -98,11 +103,13 @@ async function onSubmit() {
   await router.push(redirect);
 }
 
+//Vynuluje polia
 function onReset() {
   form.email = '';
   form.password = '';
 }
 
+//Registácia
 function goRegister() {
   void router.push('/register');
 }

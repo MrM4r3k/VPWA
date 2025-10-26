@@ -22,20 +22,24 @@ export const useMembersStore = defineStore('members', {
             u8: { id: 'u8', name: 'Emma Chen', nickName: 'emma8', status: 'DND' },
         } as Record<string, Member>
     }),
-    getters: {
-        getById: (state) => (id: string) => state.byId[id],
+    getters: {//Čítanie dát
+        getById: (state) => (id: string) => state.byId[id], //Vracia používateľa podľa ID - ak nie je -> undefined
+
+        //Najprv získa celý state, potom vráti funkciu, ktorá prejde každé ID z poľa, z objektu state.byId
+        //zoberie príslušného člena, odstráni všetky neexistujúce (undefined) hodnoty pomocou .filter(Boolean)
+        // a vráti výsledok ako pole objektov typu Member[].
         getMany: (state) => (ids: string[]) =>
             ids.map(id => state.byId[id]).filter(Boolean) as Member[],
     },
-    actions: {
-        upsert(member: Member) {
-            this.byId[member.id] = member
-        },
-        upsertMany(members: Member[]) {
-            members.forEach(m => this.upsert(m))
-        },
-        remove(id: string) {
-            delete this.byId[id]
-        }
+    actions: {//Menia dáta
+        //upsert(member: Member) { //Pridať nového člena alebo aktualizovať existujúceho podľa id
+        //    this.byId[member.id] = member
+        //},
+        //upsertMany(members: Member[]) { //Naraz pridať viac členov
+        //    members.forEach(m => this.upsert(m))
+        //},
+        //remove(id: string) { //Odstrániť člena podľa jeho id
+        //    delete this.byId[id]
+        //}
     }
 })

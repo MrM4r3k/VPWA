@@ -28,7 +28,7 @@
                   <q-icon name="search" color="#8b93f9" />
                 </template>
               </q-input>
-              
+              <!--vštky skupiny-->
               <div class="section-title mb-2">Available Groups</div>
               <q-scroll-area class="scroll-area">
                 <q-list>
@@ -53,6 +53,7 @@
                 </q-list>
               </q-scroll-area>
 
+              <!--Go back button-->
               <q-btn 
                 color="#8b93f9" 
                 flat
@@ -66,6 +67,7 @@
             <q-tab-panel name="create">
               <div class="create-layout">
                 <div class="left-column">
+                  <!--Meno-->
                   <q-input
                     v-model="text"
                     filled
@@ -77,6 +79,7 @@
                     class="mb-3"
                   />
                   
+                  <!--Search-->
                   <q-input
                     v-model="search"
                     filled
@@ -92,6 +95,7 @@
                     </template>
                   </q-input>
 
+                  <!--Private / Public-->
                   <div class="section-title mb-2">Group Privacy</div>
                   <div class="privacy-buttons">
                     <q-btn
@@ -115,6 +119,7 @@
                   </div>
                 </div>
 
+                <!--Členovia-->
                 <div class="right-column">
                   <div class="section-title mb-2">Select Members ({{ selectedMembers.length }} selected)</div>
                   <q-scroll-area class="members-scroll">
@@ -153,6 +158,7 @@
               </div>
               
               <div class="actions">
+                <!--Go back button-->
                 <q-btn 
                   color="#8b93f9" 
                   flat
@@ -160,6 +166,7 @@
                   @click="goBack"
                   class="btn"
                 />
+                <!--Create group button-->
                 <q-btn 
                   color="#8b93f9"
                   :label="`Create Group${selectedMembers.length > 0 ? ` (${selectedMembers.length})` : ''}`"
@@ -170,6 +177,7 @@
                 />
               </div>
 
+              <!--Info-->
               <q-banner 
                 v-if="selectedMembers.length < 2 || !panel || !text" 
                 class="validation mt-3"
@@ -205,6 +213,7 @@ const panel = ref('')
 const text = ref('')
 const selectedMembers = ref<string[]>([])
 
+//Zobrazenie skupín
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase()
   // len public groups
@@ -212,16 +221,21 @@ const filtered = computed(() => {
   return q ? publicChannels.filter(c => c.channelName.toLowerCase().includes(q)) : publicChannels
 })
 
+//Zoznam všetkých členov podľa id
 const allMembers = computed<Member[]>(() => Object.values(ms.byId))
 
-const filteredMembers = computed<Member[]>(() => {                        
+//Filtrované pole členov
+const filteredMembers = computed<Member[]>(() => {     
+  //Aktuálny text + trim - odstáni medzeri + zmení na malé písmená                    
   const q = search.value.trim().toLowerCase()
-  return q ? allMembers.value.filter(m => m.name.toLowerCase().includes(q) || m.nickName.toLowerCase().includes(q)) : allMembers.value
+  //Prejde každý prvok a ak je true tak sa dá do výsledného poľa
+  return q ? allMembers.value.filter(m => m.name.toLowerCase().includes(q) || m.nickName.toLowerCase().includes(q)) : allMembers.value // Výskyt q v mene alebo nickname
 })
 
+//Vytiahne prvé písmená z prvých dvoch slov mena, zloží a dá do UPPERCASE
 function initials(name: string) {
-  const p = name.trim().split(/\s+/)
-  return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase()
+  const p = name.trim().split(/\s+/) // regex - rozdelí meno na jednotlivé slová bez ohľadu na počet medzier
+  return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() //Prvé písmeno z mena a prvé z druhého mena
 }
 
 function open(id: string) {
@@ -234,11 +248,11 @@ function goBack() {
 }
 
 function toggleMemberSelection(memberId: string) {
-  const index = selectedMembers.value.indexOf(memberId)
+  const index = selectedMembers.value.indexOf(memberId) //.indexOf() hľadá pozíciu hodnoty v poli, ak nájde zhodu vráti číslo (ak nenašlo tak -1)
   if (index > -1) {
-    selectedMembers.value.splice(index, 1)
+    selectedMembers.value.splice(index, 1) //Ak je člen v zozname - treba odstániť, .splice() odstráni count 
   } else {
-    selectedMembers.value.push(memberId)
+    selectedMembers.value.push(memberId) //Ak nie je v zozname .push() vloží nový prvok na koniec poľa
   }
 }
 

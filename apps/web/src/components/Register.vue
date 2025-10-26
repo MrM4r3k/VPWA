@@ -12,6 +12,7 @@
         <q-card-section class="card-title">Register</q-card-section>
 
         <q-card-section>
+          <!--q-form spúšťa validačne pravidlá detských komponentov, .prevent zabráni reloadu stránky-->
           <q-form @submit.prevent="onSubmit" @reset="onReset" ref="formRef">
             <div class="two-col">
               <q-input

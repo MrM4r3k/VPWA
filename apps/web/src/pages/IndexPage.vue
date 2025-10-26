@@ -84,8 +84,6 @@ const checkScreenSize = () => {
   }
 }
 
-// desktop toggles removed; panels remain controlled by layout and mobile activePanel
-
 // Dynamic column widths based on panel visibility
 const leftWidth = computed(() => sidebarVisible.value ? '320px' : '0px')
 
@@ -100,8 +98,8 @@ const activateFromRoute = () => {
   if (id) ch.openChannel(id)
   if (isMobile.value) activePanel.value = 'chat'
 }
-onMounted(activateFromRoute)
-watch(() => route.params.channelId, activateFromRoute)
+onMounted(activateFromRoute) //životný cyklus
+watch(() => route.params.channelId, activateFromRoute) //Sleduje, či sa zmení parameter v URL
 
 
 // Expose q-scroll-area container element for QInfiniteScroll target
@@ -113,16 +111,17 @@ const attachScrollTarget = () => {
   saContainer.value = el
 }
 onMounted(() => {
-  checkScreenSize()
-  attachScrollTarget()
+  checkScreenSize() //Kontroluje, či je používateľ na mobile
+  attachScrollTarget() //Vyhľadá vnútorný element scrollovacej oblasti
   // also re-attach on possible layout changes
-  window.addEventListener('resize', () => {
-    checkScreenSize()
-    attachScrollTarget()
+  window.addEventListener('resize', () => { //Pri každom zmene veľkosti okna sa:
+    checkScreenSize() //skontroluje veľkosť obrazovky
+    attachScrollTarget() //aktualizuje scroll target
   })
 })
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', () => {
+
+onBeforeUnmount(() => { //Predtým, než komponent zmizne
+  window.removeEventListener('resize', () => { //Vyčistenie
     checkScreenSize()
     attachScrollTarget()
   })
@@ -141,8 +140,6 @@ function handleShowMembers() {
   overflow: hidden;
   position: relative;
 }
-
-/* Removed desktop toggle buttons (were overlaying the logo) */
 
 /* Mobile switcher */
 .mobile-switcher {

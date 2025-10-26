@@ -2,7 +2,7 @@
   <div v-if="isVisible" class="popup-overlay" @click="onHide">
     <q-card dark bordered class="popup-card" @click.stop>
       
-      <!-- HEADER -->
+      <!-- HEADER + button to close -->
       <q-card-section class="row items-center justify-between">
         <div class="text-h6 text-white">Group Members</div>
         <q-btn 
@@ -19,26 +19,29 @@
       <!-- MEMBERS LIST -->
       <q-scroll-area style="height: 300px; max-width: 350px; padding: 12px;">
         <q-list class="bg-transparent">
+          <!--Pre každý objekt m v poli filteredMembers vykreslí položku q-item-->
+          <!--:key="m.id" je unikátny identifikátor pre každý objekt m v poli filteredMembers-->
           <q-item
             v-for="m in filteredMembers"
             :key="m.id"
-            clickable 
-            v-ripple
-            @click="selectMember(m)"
           >
+            <!-- Ľavá časť s avatarom -->
             <q-item-section avatar>
               <q-avatar size="40px" color="primary" text-color="white">
                 {{ initials(m.name) }}
               </q-avatar>
             </q-item-section>
 
+            <!-- Meno nickName a status -->
             <q-item-section>
               <q-item-label class="text-white">
                 {{ m.name }}
+                <!-- Ikona kráľa pre majiteľa skupiny -->
                 <q-icon v-if="isOwner(m)" class="text-amber" name="mdi-crown" size="20px" />
               </q-item-label>
+              <!-- Caption je menšia časť textu pod menom -->
               <q-item-label caption class="text-grey-5">
-                @{{ m.nickName }} - {{ m.status }}
+                @{{ m.nickName }} - {{ m.status }} <!-- Status je online, offline alebo DND -->
               </q-item-label>
             </q-item-section>
 
@@ -55,56 +58,53 @@ import { computed, ref, watch } from 'vue'
 import { type Member } from 'src/stores/members-store'
 import { useChannelStore } from 'src/stores/channel-store'
 
+// Prop je visible (true/false), či má byť popup otvorený.
 const props = defineProps<{
   visible: boolean
 }>()
 
+// Emit je update:visible (true/false), či má byť popup otvorený.
 const emit = defineEmits<{
-  (e: 'update:visible', value: boolean): void
-  (e: 'groupCreated', payload: { members: string[] }): void
+  (e: 'update:visible', value: boolean): void 
 }>()
 
 const channels = useChannelStore()
 
+// Umožní používať visible ako boolean v template, computed je na stále prepočítavanie
 const isVisible = computed({
   get: () => props.visible,
   set: (value) => emit('update:visible', value)
 })
 
+// Hľadanie členov
 const search = ref('')
-const selectedMembers = ref<string[]>([])
 
 // Zobrazuj len členov aktívnej skupiny
 const activeMembers = computed<Member[]>(() => channels.activeMembers)
 
-const filteredMembers = computed<Member[]>(() => {                        
+//Filtrované pole členov
+const filteredMembers = computed<Member[]>(() => {           
+  //Aktuálny text + trim - odstáni medzeri + zmení na malé písmená             
   const q = search.value.trim().toLowerCase()
   if (!q) return activeMembers.value
+  //Prejde každý prvok a ak je true tak sa dá do výsledného poľa
   return activeMembers.value.filter(m =>
-    m.name.toLowerCase().includes(q) || m.nickName.toLowerCase().includes(q)
+    m.name.toLowerCase().includes(q) || m.nickName.toLowerCase().includes(q) //Zmení to na malé písmená + či obsahuje podreťazec q
   )
 })
 
+//Id vlastníka skupiny
 const ownerId = computed(() => channels.activeChannel?.ownerId ?? null)
 
+//Vytiahne prvé písmená z prvých dvoch slov mena, zloží a dá do UPPERCASE
 function initials(name: string) {
-  const p = name.trim().split(/\s+/)
-  return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase()
-}
-
-function selectMember(member: Member) {
-  const index = selectedMembers.value.indexOf(member.id)
-  if (index > -1) {
-    selectedMembers.value.splice(index, 1)
-  } else {
-    selectedMembers.value.push(member.id)
-  }
+  const p = name.trim().split(/\s+/) // regex - rozdelí meno na jednotlivé slová bez ohľadu na počet medzier
+  return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() //Prvé písmeno z mena a prvé z druhého mena
 }
 
 function onHide() {
   // Reset form
   search.value = ''
-  selectedMembers.value = []
   emit('update:visible', false)
 }
 
@@ -117,7 +117,6 @@ watch(() => props.visible, (newVal) => {
   if (newVal) {
     // Reset form when opening
     search.value = ''
-    selectedMembers.value = []
   }
 })
 </script>

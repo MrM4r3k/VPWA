@@ -3,6 +3,7 @@
       <q-toolbar class="row items-center q-gutter-md">  
         <!-- Mobile back to channels -->
         <q-btn v-if="isMobile" flat round size="sm" color="white" icon="arrow_back" class="btn-ghost" @click="goBackToChannels" />
+        <!--ChannelName + počet členov + status -->
         <q-toolbar-title class="col">
           <div style="font-size:18px; font-weight:600; color:#8b93f9; line-height:1.1">
             {{ active.channelName }}
@@ -14,7 +15,7 @@
         
         <!-- Action Buttons -->
         <div class="header-right">
-          <!-- Invitation buttons -->
+          <!-- Accept / Decline -->
           <template v-if="active.isInvited && !isMobile">
             <q-btn
               flat
@@ -66,9 +67,12 @@
   const channels = useChannelStore()
   const members = computed(() => channels.activeMembers)
   const route = useRoute()
+  //Injektovaná (poskytovaná parentom) reaktívna hodnota Ref<boolean> - či sme na mobile alebo nie
   const isMobile = inject<Ref<boolean>>('isMobile')
+  //injektovaná callback funkcia, ktorá prepína layout panel (napr. 'left' vs 'chat')
   const setActivePanel = inject<((p: 'left'|'chat') => void)>('setActivePanel')
 
+  //Na mobile vráti dozadu do ľavého panelu (zoznam kanálov)
   function goBackToChannels() {
     if (isMobile?.value && setActivePanel) setActivePanel('left')
   }
@@ -76,7 +80,7 @@
   //   if (isMobile?.value && setActivePanel) setActivePanel('right')
   // }
   
-  // Bezpečný fallback, aby template nikdy nedostal null/undefined
+  // Bezpečný fallback, aby template nikdy nedostal null/undefined - keby nie je žiaden kanál k dispozícii
   const FALLBACK: Channel = {
     id: '_fallback',
     channelName: '—',

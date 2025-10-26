@@ -59,6 +59,8 @@
   
   submit()
 }
+
+//Stráži, či je aktívny kanál a či je text neprázdny, vysiela event do rodiča, vyčistí input.
 function submit() {
   if (!active.value) return
   const val = text.value.trim()
@@ -67,6 +69,7 @@ function submit() {
   text.value = ''
   cmdMenu.value = false
 }
+//Keď používateľ napíše /list, vyvolajú sa členovia
 function onInput() {
   cmdMenu.value = text.value.trim().startsWith('/')
   
@@ -77,6 +80,7 @@ function onInput() {
   }
 }
 
+//Notifikácia
 function showTestNotif() {
   $q.notify({
     message: 'Mike',
