@@ -27,9 +27,15 @@
           >
             <!-- Ľavá časť s avatarom -->
             <q-item-section avatar>
-              <q-avatar size="40px" color="primary" text-color="white">
-                {{ initials(m.name) }}
-              </q-avatar>
+              <div class="avatar-container">
+                <q-avatar size="40px" color="primary" text-color="white">
+                  {{ initials(m.name) }}
+                </q-avatar>
+                <div 
+                  class="status-dot" 
+                  :class="`status-dot--${m.status}`"
+                ></div>
+              </div>
             </q-item-section>
 
             <!-- Meno nickName a status -->
@@ -148,6 +154,35 @@ watch(() => props.visible, (newVal) => {
               #0b0d1054 !important;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
   overflow: hidden;
+}
+
+/* Avatar container with status dot */
+.avatar-container {
+  position: relative;
+  display: inline-block;
+}
+
+.status-dot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(11, 13, 16, 0.95);
+  box-sizing: border-box;
+}
+
+.status-dot--online {
+  background-color: #4caf50; /* Green for online */
+}
+
+.status-dot--offline {
+  background-color: #9ca3af; /* Gray for offline */
+}
+
+.status-dot--DND {
+  background-color: #f44336; /* Red for do not disturb */
 }
 
 /* Mobile responsive */
