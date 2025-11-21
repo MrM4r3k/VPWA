@@ -19,12 +19,13 @@
         placeholder="Send a message"
         input-class="text-white"
         class="composer-input"
+        :disable="hasPendingInvite"
         @keydown.enter.prevent="onEnter"
         @input="onInput"
       />
 
       <div class="composer-actions-right">
-        <q-btn :disable="!canSend" round unelevated color="primary" icon="send" @click="submit" />
+        <q-btn :disable="!canSend || hasPendingInvite" round unelevated color="primary" icon="send" @click="submit" />
       </div>
     </div>
   </footer>
@@ -41,6 +42,7 @@
   const text = ref('')
   const cmdMenu = ref(false)
   const canSend = computed(() => !!text.value.trim())
+  const hasPendingInvite = computed(() => active.value?.isInvited === true)
   
   const emit = defineEmits<{
   (e: 'submit', payload: { text: string; channelId: string }): void
@@ -62,7 +64,7 @@
 
 //Stráži, či je aktívny kanál a či je text neprázdny, vysiela event do rodiča, vyčistí input.
 function submit() {
-  if (!active.value) return
+  if (!active.value || hasPendingInvite.value) return
   const val = text.value.trim()
   if (!val) return
   emit('submit', { text: val, channelId: active.value.id })
@@ -138,6 +140,10 @@ function showTestNotif() {
 
   .composer-input {
     min-height: 36px;
+  }
+
+  .composer-input :deep(.q-field--disabled) {
+    opacity: 0.5;
   }
 
   /* Responsive design */
