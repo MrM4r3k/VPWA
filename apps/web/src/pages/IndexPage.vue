@@ -14,20 +14,38 @@
           <ChatHeader />
 
           <!-- Messages Area -->
-          <q-scroll-area ref="sa" class="center-messages fit">
+          <q-scroll-area
+            ref="sa"
+            class="center-messages fit"
+            :class="{ 'center-messages--typing': hasTypingActivity }"
+          >
             <MessageList :scroll-target="saContainer" />
           </q-scroll-area>
 
           <!-- Typing Indicator (design only) -->
-          <div class="typing-indicator">
+          <div v-if="hasTypingActivity" class="typing-indicator">
             <div class="typing-indicator__container">
-              <div class="typing-indicator__inner">
+              <div
+                class="typing-indicator__inner"
+                role="button"
+                tabindex="0"
+                @click="handleTypingPreviewClick"
+                @keydown.enter.prevent="handleTypingPreviewClick"
+                @keydown.space.prevent="handleTypingPreviewClick"
+              >
                 <div class="typing-bubbles" aria-hidden="true">
                   <span></span>
                   <span></span>
                   <span></span>
                 </div>
-                <span class="typing-text"><strong>Alex</strong> is typing…</span>
+                <div class="typing-text">
+                  <div class="typing-text__header">
+                    <strong>{{ typingIndicatorHeadline }}</strong>
+                    <span class="typing-text__suffix">{{ typingIndicatorSuffix }}</span>
+                  </div>
+                  <span class="typing-text__meta">Click to see more</span>
+                </div>
+                <q-icon name="chevron_right" size="18px" class="typing-indicator__icon" />
               </div>
             </div>
           </div>
@@ -42,6 +60,10 @@
     <ChannelMembers
       v-model:visible="showMembersPopup" 
     />
+    <TypingPreviewPopup
+      v-model:visible="showTypingPreview"
+      :people="typingPreview"
+    />
   </q-page>
 </template>
 
@@ -55,6 +77,7 @@ import MessageList from 'src/components/MessageList.vue'
 import MessageComposer from 'src/components/MessageComposer.vue'
 import { useChannelStore } from 'src/stores/channel-store'
 import ChannelMembers from 'src/components/ChannelMembers.vue'
+import TypingPreviewPopup from 'src/components/TypingPreviewPopup.vue'
 
 const route = useRoute()
 const ch = useChannelStore()
@@ -62,8 +85,71 @@ const ch = useChannelStore()
 // Panel visibility (desktop/tablet)
 const sidebarVisible = ref(true)
 
-// Members popup state
+type TypingDraft = {
+  id: string
+  name: string
+  nick: string
+  text: string
+}
+
+// Popup states
 const showMembersPopup = ref(false)
+const showTypingPreview = ref(false)
+
+// Temporary mock data for typing preview GUI
+const typingPreviewPresets: Record<string, TypingDraft[]> = {
+  'Team Beta': [
+    {
+      id: 'alex',
+      name: 'Alex Carter',
+      nick: 'alex',
+      text: 'Hey team, pushing the new build in about 5 minutes. Need a quick sanity check on the onboarding flow...'
+    },
+    {
+      id: 'maya',
+      name: 'Maya Singh',
+      nick: 'maya',
+      text: '/giphy ship it 🚀 (but seriously, the metrics look solid — adding them here)'
+    },
+    {
+      id: 'jules',
+      name: 'Jules Novak',
+      nick: 'jules',
+      text: 'Mocking up a quick response... almost there. Need to mention the pricing change + migration notes.'
+    }
+  ]
+}
+
+const typingPreview = computed(() => {
+  const channelName = ch.activeChannel?.channelName ?? ''
+  return typingPreviewPresets[channelName] ?? []
+})
+
+const hasTypingActivity = computed(() => typingPreview.value.length > 0)
+
+const firstName = (name: string) => {
+  const part = name.trim().split(' ')[0]
+  return part || name
+}
+
+const typingIndicatorHeadline = computed(() => {
+  const list = typingPreview.value
+  const first = list[0]
+  const second = list[1]
+  if (!first) return ''
+  if (!second) return firstName(first.name)
+  if (list.length === 2) {
+    return `${firstName(first.name)}, ${firstName(second.name)}`
+  }
+  return 'More users'
+})
+
+const typingIndicatorSuffix = computed(() => {
+  const count = typingPreview.value.length
+  if (!count) return ''
+  if (count === 1) return 'is typing…'
+  return 'are typing…'
+})
 
 // Mobile single active panel: 'left' | 'chat'
 const activePanel = ref<'left' | 'chat'>('chat')
@@ -130,6 +216,11 @@ onBeforeUnmount(() => { //Predtým, než komponent zmizne
 // Handle show members popup
 function handleShowMembers() {
   showMembersPopup.value = true
+}
+
+function handleTypingPreviewClick() {
+  if (!typingPreview.value.length) return
+  showTypingPreview.value = true
 }
 
 </script>
@@ -221,6 +312,9 @@ function handleShowMembers() {
     radial-gradient(1000px 500px at 110% 110%, rgba(32, 34, 37, 0.55), transparent),
     #0b0d10;
 }
+.center-messages--typing {
+  padding-bottom: 180px;
+}
 /* Typing indicator positioning */
 .typing-indicator {
   position: fixed;
@@ -244,12 +338,41 @@ function handleShowMembers() {
   background: rgba(24, 26, 31, 0.9);
   border: 1px solid rgba(88, 101, 242, 0.15);
   border-radius: 12px;
-  padding: 6px 10px;
+  padding: 10px 14px;
   pointer-events: auto;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+.typing-indicator__inner:hover {
+  border-color: rgba(139, 147, 249, 0.5);
+  transform: translateY(-1px);
+}
+.typing-indicator__inner--disabled {
+  opacity: 0.6;
+  cursor: default;
+  pointer-events: none;
 }
 .typing-text {
+  display: flex;
+  flex-direction: column;
   font-size: 12px;
   color: #c9cdd4;
+}
+.typing-text__header {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.typing-text__suffix {
+  font-weight: 400;
+}
+.typing-text__meta {
+  font-size: 11px;
+  color: #9fa4c7;
+  margin-top: 2px;
+}
+.typing-indicator__icon {
+  color: #9fa4c7;
 }
 .typing-bubbles {
   display: inline-flex;
@@ -314,7 +437,10 @@ function handleShowMembers() {
   }
   .center-messages {
     padding-top: 60px; /* Reduced padding for mobile */
-    padding-bottom: 110px; /* Increased from 100px for more clearance */
+    padding-bottom: 120px; /* Increased from 100px for more clearance */
+  }
+  .center-messages--typing {
+    padding-bottom: 180px;
   }
 }
 
@@ -322,6 +448,9 @@ function handleShowMembers() {
   .center-messages {
     padding-left: 12px;
     padding-right: 12px;
+  }
+  .center-messages--typing {
+    padding-bottom: 170px;
   }
   .typing-indicator__container {
     padding-left: 12px;
