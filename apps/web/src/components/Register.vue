@@ -105,7 +105,7 @@
             </q-input>
 
             <div class="actions">
-              <q-btn type="submit" color="primary" label="Create account" unelevated class="full-width q-mb-sm" />
+              <q-btn type="submit" color="primary" label="Create account" unelevated class="full-width q-mb-sm" :loading="loading" :disable="loading" />
               <q-btn flat label="Back to Sign in" color="grey-5" class="full-width" @click="goLogin" />
             </div>
           </q-form>
@@ -118,7 +118,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { QForm } from 'quasar';
+import { QForm, useQuasar } from 'quasar';
 import logoUrl from 'src/assets/logo.png';
 import 'src/css/auth-theme.scss';
 
@@ -127,9 +127,11 @@ defineOptions({
 });
 
 const router = useRouter();
+const q = useQuasar();
 const formRef = ref<InstanceType<typeof QForm> | null>(null);
 const showPwd = ref(false);
 const showConfirm = ref(false);
+const loading = ref(false);
 
 const form = reactive({
   name: '',
@@ -148,12 +150,57 @@ const rules = {
 };
 
 async function onSubmit() {
+  // Validácia formulára
   const ok = await formRef.value?.validate();
   if (!ok) return;
 
-  localStorage.setItem('auth.registered', 'true');
-  localStorage.setItem('auth.loggedIn', 'true');
-  await router.push('/app');
+  loading.value = true;
+
+  try {
+    // Posielanie dát na server
+    const response = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: form.name,
+        surname: form.surname,
+        nickname: form.nickname,
+        email: form.email,
+        password: form.password,
+      }),
+    });
+
+    // Prebranie odpovede zo servera
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Registration failed');
+    }
+
+    // Uložiť token
+    localStorage.setItem('auth_token', data.token.token);
+    localStorage.setItem('auth.loggedIn', 'true');
+
+    q.notify({
+      type: 'positive',
+      message: 'Registration successful! Please login.',
+      position: 'top',
+    });
+
+    // Presmerovať na login
+    await router.push('/login');
+  } catch (error) {
+    console.error('Registration error:', error);
+    q.notify({
+      type: 'negative',
+      message: error instanceof Error ? error.message : 'Registration failed',
+      position: 'top',
+    });
+  } finally {
+    loading.value = false;
+  }
 }
 
 function onReset() {

@@ -48,7 +48,15 @@
             </q-input>
 
             <div class="actions">
-              <q-btn type="submit" color="primary" label="Sign in" unelevated class="full-width q-mb-sm" />
+              <q-btn 
+                type="submit" 
+                color="primary" 
+                label="Sign in" 
+                unelevated 
+                class="full-width q-mb-sm"
+                :loading="loading"
+                :disable="loading"
+              />
             </div>
           </q-form>
         </q-card-section>
@@ -66,7 +74,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { QForm } from 'quasar';
+import { QForm, useQuasar } from 'quasar';
 import logoUrl from 'src/assets/logo.png';
 import 'src/css/auth-theme.scss';
 
@@ -76,9 +84,11 @@ defineOptions({
 });
 
 const router = useRouter();
+const $q = useQuasar();
 //Drží odkaz na <q-form>, aby sme vedeli volať validate()
 const formRef = ref<InstanceType<typeof QForm> | null>(null);
 const showPwd = ref(false);
+const loading = ref(false);
 
 //Vstupné hodnoty formulára
 const form = reactive({
@@ -97,10 +107,48 @@ async function onSubmit() {
   const ok = await formRef.value?.validate();
   if (!ok) return;
 
-  // (authStore.signIn(form.email, form.password))
-  localStorage.setItem('auth.loggedIn', 'true');
-  const redirect = (router.currentRoute.value.query.redirect as string) || '/app';
-  await router.push(redirect);
+  loading.value = true;
+
+  try {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: form.email,
+        password: form.password,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Login failed');
+    }
+
+    // Uložiť token
+    localStorage.setItem('auth_token', data.token.token);
+    localStorage.setItem('auth.loggedIn', 'true');
+
+    $q.notify({
+      type: 'positive',
+      message: 'Login successful!',
+      position: 'top',
+    });
+
+    const redirect = (router.currentRoute.value.query.redirect as string) || '/app';
+    await router.push(redirect);
+  } catch (error) {
+    console.error('Login error:', error);
+    $q.notify({
+      type: 'negative',
+      message: error instanceof Error ? error.message : 'Login failed',
+      position: 'top',
+    });
+  } finally {
+    loading.value = false;
+  }
 }
 
 //Vynuluje polia

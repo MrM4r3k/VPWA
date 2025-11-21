@@ -1,0 +1,67 @@
+# Dependencies
+node_modules/
+# package-lock.json - NEPRIDAŤ! Je dôležitý pre konzistentné verzie
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+.quasar/
+
+# Database
+*.sqlite
+*.sqlite3
+tmp/
+apps/api/tmp/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+.thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+.fleet/
+*.swp
+*.swo
+*~
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Temporary files
+*.tmp
+*.temp
+quasar.config.*.temporary.compiled*
+
+# Quasar build files
+apps/web/.quasar/
+apps/web/dist/
+apps/web/quasar.config.*.temporary.compiled*
+
+# AdonisJS build files
+apps/api/build/
+apps/api/tmp/
+
+# Documentation (optional - odkomentuj ak nechceš pushovať)
+# Info.docx
+# DBMS ER diagram (UML notation).png
+

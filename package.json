@@ -2,8 +2,12 @@
   "name": "vpwa-root",
   "private": true,
   "scripts": {
-    "start": "npm run --prefix apps/web dev"
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm run --prefix apps/api dev",
+    "dev:web": "npm run --prefix apps/web dev",
+    "start": "npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }
-
-

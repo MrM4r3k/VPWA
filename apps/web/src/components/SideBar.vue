@@ -236,9 +236,28 @@
   }
   
 
-  function logout() {
-    localStorage.removeItem('auth.loggedIn');
-    void router.push('/login');
+  async function logout() {
+    try {
+      const token = localStorage.getItem('auth_token');
+      
+      // Poslanie requestu na server s tokenom v hlavičke
+      if (token) {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Vymazanie tokenu z localStorage
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth.loggedIn');
+      void router.push('/login');
+    }
   }
 
   function newGroup(){

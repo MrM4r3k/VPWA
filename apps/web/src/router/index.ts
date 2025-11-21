@@ -10,7 +10,7 @@ export default route(function () {
   })
 
   // autorizačná podmienka – uprav si na svoj kľúč (token)
-  const hasToken = () => !!localStorage.getItem('auth_token') || localStorage.getItem('auth.loggedIn') === 'true'
+  const hasToken = () => !!localStorage.getItem('auth_token')
 
   Router.beforeEach((to, from) => {
     // 1) Bez prihlásenia nepustiť na /app (a deti)
