@@ -1,33 +1,43 @@
 <template>
-  <q-infinite-scroll
-    class="messages"
-    reverse
-    @load="onLoad"
-    :scroll-target="scrollTarget"
-  >
-    <template v-slot:loading>
-      <div class="row justify-center q-my-md">
-        <q-spinner color="primary" name="dots" size="40px" />
-      </div>
-    </template>
-
-    <div
-      v-for="msg in visibleMessages"
-      :key="msg.id"
-      class="message-row"
-      :class="{ 'is-mention': isMentionForMe(msg.text) }"
+  <div class="message-list-wrapper" :class="{ 'has-pending-invite': hasPendingInvite }">
+    <q-infinite-scroll
+      class="messages"
+      reverse
+      @load="onLoad"
+      :scroll-target="scrollTarget"
     >
-      <div class="avatar">{{ getInitials(msg.author.name) }}</div>
-      <div class="bubble">
-        <div class="meta">
-          <span class="author">{{ msg.author.name }}</span>
-          <span class="time">{{ msg.time }}</span>
+      <template v-slot:loading>
+        <div class="row justify-center q-my-md">
+          <q-spinner color="primary" name="dots" size="40px" />
         </div>
-        <div class="text" v-html="renderText(msg.text)"></div>
+      </template>
+
+      <div
+        v-for="msg in visibleMessages"
+        :key="msg.id"
+        class="message-row"
+        :class="{ 'is-mention': isMentionForMe(msg.text) }"
+      >
+        <div class="avatar">{{ getInitials(msg.author.name) }}</div>
+        <div class="bubble">
+          <div class="meta">
+            <span class="author">{{ msg.author.name }}</span>
+            <span class="time">{{ msg.time }}</span>
+          </div>
+          <div class="text" v-html="renderText(msg.text)"></div>
+        </div>
+      </div>
+    </q-infinite-scroll>
+    
+    <!-- Blur overlay when invite is pending -->
+    <div v-if="hasPendingInvite" class="invite-blur-overlay">
+      <div class="invite-blur-message">
+        <q-icon name="mail" size="48px" color="primary" />
+        <p class="invite-blur-text">You have a pending invitation</p>
+        <p class="invite-blur-subtext">Accept or decline the invitation to view messages</p>
       </div>
     </div>
-  </q-infinite-scroll>
-  
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -52,6 +62,12 @@ const { scrollTarget } = defineProps<{ scrollTarget?: string | Element | undefin
 // GUI-only: pick a fixed current user from the mock data
 const CURRENT_USER_ID = 'u1'
 const currentUser = computed<Member | null>(() => members.getById(CURRENT_USER_ID) ?? null)
+
+// Check if active channel has pending invite
+const hasPendingInvite = computed(() => {
+  const active = channels.activeChannel
+  return active?.isInvited === true
+})
 
 // Mock messages per channel (GUI-only)
 const mockMessages = computed<Msg[]>(() => {
@@ -212,6 +228,85 @@ function escapeRegExp(s: string): string {
   background: rgba(88, 101, 242, 0.22);
   padding: 0 4px;
   border-radius: 4px;
+}
+
+/* Blur effect for pending invites */
+.message-list-wrapper {
+  position: relative;
+}
+
+.message-list-wrapper.has-pending-invite .messages {
+  filter: blur(8px);
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.3;
+}
+
+.invite-blur-overlay {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.invite-blur-message {
+  text-align: center;
+  padding: 32px;
+  background: rgba(11, 13, 16, 0.95);
+  border: 1px solid rgba(88, 101, 242, 0.3);
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  max-width: 400px;
+}
+
+.invite-blur-text {
+  color: #8b93f9;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 16px 0 8px 0;
+}
+
+.invite-blur-subtext {
+  color: #9ca3af;
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .invite-blur-message {
+    padding: 24px;
+    max-width: 90%;
+    margin: 0 16px;
+  }
+
+  .invite-blur-text {
+    font-size: 16px;
+  }
+
+  .invite-blur-subtext {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .invite-blur-message {
+    padding: 20px;
+    max-width: 85%;
+  }
+
+  .invite-blur-text {
+    font-size: 15px;
+    margin: 12px 0 6px 0;
+  }
+
+  .invite-blur-subtext {
+    font-size: 12px;
+  }
 }
 </style>
 
