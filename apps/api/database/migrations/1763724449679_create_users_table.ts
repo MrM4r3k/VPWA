@@ -8,7 +8,8 @@ export default class extends BaseSchema {
       table.increments('id').notNullable()
       table.string('name').notNullable()
       table.string('surname').notNullable()
-      table.string('nickName').notNullable().unique()
+      // Use snake_case for database column names to match Lucid's default mapping
+      table.string('nick_name').notNullable().unique()
       table.string('email', 254).notNullable().unique()
       table.string('password').notNullable()
 
