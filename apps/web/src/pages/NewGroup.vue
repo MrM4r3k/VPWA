@@ -171,7 +171,7 @@
                   color="#8b93f9"
                   :label="`Create Group${selectedMembers.length > 0 ? ` (${selectedMembers.length})` : ''}`"
                   @click="createGroup"
-                  :disable="selectedMembers.length < 2 || !panel || !text"
+                  :disable="selectedMembers.length < 1 || !panel || !text"
                   unelevated
                   class="btn create"
                 />
@@ -179,14 +179,14 @@
 
               <!--Info-->
               <q-banner 
-                v-if="selectedMembers.length < 2 || !panel || !text" 
+                v-if="selectedMembers.length < 1 || !panel || !text" 
                 class="validation mt-3"
                 rounded
               >
                 <template #avatar>
                   <q-icon name="info" color="#8b93f9" />
                 </template>
-                Required: Group name, at least 2 members, and privacy setting
+                Required: Group name, at least 1 member, and privacy setting
               </q-banner>
             </q-tab-panel>
           </q-tab-panels>
@@ -197,21 +197,25 @@
 </template>
   
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useChannelStore } from '../stores/channel-store'
 import { useRouter } from 'vue-router'
 import { useMembersStore, type Member } from 'src/stores/members-store'
+import { api } from 'boot/axios'
+import { useQuasar } from 'quasar'
 import 'src/css/auth-theme.scss'
 
 const store = useChannelStore()
 const ms = useMembersStore()
 const router = useRouter()
+const $q = useQuasar()
 
 const tab = ref<'search' | 'create'>('search')
 const search = ref('')
 const panel = ref('')
 const text = ref('')
 const selectedMembers = ref<string[]>([])
+const loading = ref(false)
 
 //Zobrazenie skupín
 const filtered = computed(() => {
@@ -256,12 +260,49 @@ function toggleMemberSelection(memberId: string) {
   }
 }
 
-function createGroup() {
-  if (selectedMembers.value.length >= 2 && panel.value) {
-  //potom prerobit na vytvorenie
+async function createGroup() {
+  if (selectedMembers.value.length < 1 || !panel.value || !text.value.trim()) {
+    return
+  }
+
+  loading.value = true
+
+  // For now we only send the group name and privacy flag.
+  // Member IDs are mocked in the frontend and do not match real user IDs in the DB yet.
+  try {
+    await api.post('/api/channels', {
+      name: text.value.trim(),
+      isPrivate: panel.value === 'private',
+      memberIds: [],
+    })
+
+    // Refresh local channel list from API so sidebar sees the new group
+    await store.fetchChannels()
     goBack()
+  } catch (error: unknown) {
+    console.error('Create group error:', error)
+
+    const err = error as { response?: { data?: { message?: string } } }
+    const message =
+      err.response?.data?.message ||
+      (error instanceof Error ? error.message : 'Failed to create group')
+
+    $q.notify({
+      type: 'negative',
+      message,
+      position: 'top',
+    })
+  } finally {
+    loading.value = false
   }
 }
+
+onMounted(() => {
+  // Ensure we have an up-to-date list of channels when opening this page
+  void store.fetchChannels()
+  // Load real users from backend for member selection
+  void ms.fetchAll()
+})
 
 
 </script>

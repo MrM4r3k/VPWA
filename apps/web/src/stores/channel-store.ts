@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import type { Member } from './members-store'
 import { useMembersStore } from './members-store'
+import { api } from 'boot/axios'
 
 export interface Channel {
   id: string
@@ -16,54 +17,7 @@ export interface Channel {
 
 export const useChannelStore = defineStore('channels', {
   state: () => ({
-    channels: [
-      {
-        id: 't1',
-        channelName: 'Team Alpha',
-        isPrivate: false,
-        unread: 3,
-        ownerId: 'u1',
-        memberIds: ['u1', 'u2', 'u3', 'u6', 'u7', 'u8'],
-      },
-      {
-        id: 't2',
-        channelName: 'Backend Crew',
-        isPrivate: true,
-        unread: 0,
-        ownerId: 'u2',
-        memberIds: ['u2', 'u4'],
-      },
-      {
-        id: 't3',
-        channelName: 'Team Beta',
-        isPrivate: false,
-        unread: 5,
-        ownerId: 'u3',
-        memberIds: ['u1', 'u3', 'u2', 'u4'],
-      },
-      {
-        id: 't4',
-        channelName: 'Team X',
-        isPrivate: false,
-        ownerId: 'u3',
-        memberIds: ['u1', 'u3', 'u2', 'u4'],
-      },
-      {
-        id: 't5',
-        channelName: 'Team Y',
-        isPrivate: false,
-        ownerId: 'u3',
-        memberIds: ['u1', 'u3', 'u2', 'u4'],
-      },
-      {
-        id: 'invite1',
-        channelName: 'Design Team',
-        isPrivate: true,
-        ownerId: 'u2',
-        memberIds: ['u2', 'u4'],
-        isInvited: true,
-      },
-    ] as Channel[],
+    channels: [] as Channel[],
     activeChannelId: null as string | null,
   }),
   getters: { //Čítanie dát
@@ -78,5 +32,15 @@ export const useChannelStore = defineStore('channels', {
   },
   actions: {//Menia dáta
     openChannel(id: string) { this.activeChannelId = id }, //Zmena aktívneho kanála
+
+    async fetchChannels() {
+      const response = await api.get('/api/channels')
+      // API returns { channels: [...] }
+      this.channels = response.data.channels as Channel[]
+    },
+
+    setChannels(channels: Channel[]) {
+      this.channels = channels
+    },
   },
 })

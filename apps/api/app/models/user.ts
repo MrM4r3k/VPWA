@@ -20,7 +20,8 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @column()
   declare surname: string
 
-  @column()
+  // Map camelCase property to snake_case DB column
+  @column({ columnName: 'nick_name' })
   declare nickName: string
 
   @column()

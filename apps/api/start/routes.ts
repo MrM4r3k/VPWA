@@ -11,6 +11,8 @@ import router from '@adonisjs/core/services/router'
 import { middleware } from './kernel.js'
 
 const AuthController = () => import('#controllers/auth_controller')
+const ChannelsController = () => import('#controllers/channels_controller')
+const UsersController = () => import('#controllers/users_controller')
 
 router.get('/', async () => {
   return {
@@ -31,4 +33,22 @@ router
     router.get('/me', [AuthController, 'me'])
   })
   .prefix('/api/auth')
+  .use(middleware.auth())
+
+// Channels (protected)
+router
+  .group(() => {
+    router.get('/channels', [ChannelsController, 'index'])
+    router.get('/channels/public', [ChannelsController, 'publicList'])
+    router.post('/channels', [ChannelsController, 'store'])
+  })
+  .prefix('/api')
+  .use(middleware.auth())
+
+// Users (protected)
+router
+  .group(() => {
+    router.get('/users', [UsersController, 'index'])
+  })
+  .prefix('/api')
   .use(middleware.auth())

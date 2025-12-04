@@ -156,7 +156,7 @@
 </template>
   
   <script setup lang="ts">
-  import { computed, ref, inject, type Ref } from 'vue';
+  import { computed, ref, inject, type Ref, onMounted } from 'vue';
   import { useChannelStore } from '../stores/channel-store';
   import { useRouter } from 'vue-router';
   
@@ -263,6 +263,11 @@
   function newGroup(){
     void router.push('/newGroup');
   }
+
+  // Load channels from API when sidebar is mounted
+  onMounted(() => {
+    void store.fetchChannels()
+  })
 
   </script>
   

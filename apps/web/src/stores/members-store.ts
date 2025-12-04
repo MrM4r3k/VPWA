@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { api } from 'boot/axios'
 
 export type UserStatus = 'online' | 'offline' | 'DND'
 
@@ -32,14 +33,35 @@ export const useMembersStore = defineStore('members', {
             ids.map(id => state.byId[id]).filter(Boolean) as Member[],
     },
     actions: {//Menia dáta
-        //upsert(member: Member) { //Pridať nového člena alebo aktualizovať existujúceho podľa id
-        //    this.byId[member.id] = member
-        //},
-        //upsertMany(members: Member[]) { //Naraz pridať viac členov
-        //    members.forEach(m => this.upsert(m))
-        //},
-        //remove(id: string) { //Odstrániť člena podľa jeho id
-        //    delete this.byId[id]
-        //}
+        upsert(member: Member) { //Pridať nového člena alebo aktualizovať existujúceho podľa id
+            this.byId[member.id] = member
+        },
+        upsertMany(members: Member[]) { //Naraz pridať viac členov
+            members.forEach(m => this.upsert(m))
+        },
+        remove(id: string) { //Odstrániť člena podľa jeho id
+            delete this.byId[id]
+        },
+        async fetchAll() {
+            const response = await api.get('/api/users')
+            const users = response.data.users as { id: number; name: string; nickName: string; email?: string }[]
+
+            const members: Member[] = users.map((u) => {
+                const member: Member = {
+                    id: String(u.id),
+                    name: u.name,
+                    nickName: u.nickName,
+                    status: 'online',
+                }
+
+                if (u.email) {
+                    member.email = u.email
+                }
+
+                return member
+            })
+
+            this.upsertMany(members)
+        },
     }
 })

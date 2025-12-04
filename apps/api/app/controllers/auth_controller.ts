@@ -12,7 +12,8 @@ export default class AuthController {
         // Check if email or nickname already exists
         const existingUser = await User.query()
             .where('email', payload.email)
-            .orWhere('nickName', payload.nickname)
+            // DB column is "nick_name" (snake_case)
+            .orWhere('nick_name', payload.nickname)
             .first()
 
         if (existingUser) {
