@@ -9,6 +9,7 @@ export default class ChannelsController {
   async index({ auth }: HttpContext) {
     const user = await auth.getUserOrFail()
 
+    // Najprv nacitaj clenstva prihlaseneho pouzivatela
     const memberships = await ChannelMember.query()
       .where('user_id', user.id)
 
@@ -16,6 +17,7 @@ export default class ChannelsController {
     const channelIds = memberships.map((m) => m.channelId)
     const allMembers = await ChannelMember.query().whereIn('channel_id', channelIds)
 
+    // Zoskup clenov podla channel_id, aby sme vedeli doplnit memberIds
     const membersByChannel = allMembers.reduce<Record<number, number[]>>((acc, row) => {
       if (!acc[row.channelId]) acc[row.channelId] = []
       acc[row.channelId].push(row.userId)
@@ -23,6 +25,7 @@ export default class ChannelsController {
     }, {})
 
     // Load channel records for all memberships
+    // Nacitaj samotne kanaly podla zoznamu channelIds
     const channels = await Channel.query().whereIn('id', channelIds)
     const channelById = new Map<number, Channel>()
     channels.forEach((c) => channelById.set(c.id, c))
@@ -115,7 +118,8 @@ export default class ChannelsController {
         channelId: channel.id,
         userId: memberId,
         role: memberId === user.id ? 'owner' : 'member',
-        invitationStatus: 'accepted',
+        // Vlastnik je hned accepted, ostatni idu ako pending (pozvanka)
+        invitationStatus: memberId === user.id ? 'accepted' : 'pending',
         unreadCount: 0,
       })
     }
@@ -133,6 +137,57 @@ export default class ChannelsController {
         isInvited: false,
       },
     })
+  }
+
+  /**
+   * Akceptuj pozvanku do kanala.
+   */
+  async acceptInvite({ params, auth, response }: HttpContext) {
+    const user = await auth.getUserOrFail()
+    const channelId = Number(params.channelId)
+
+    const membership = await ChannelMember.query()
+      .where('channel_id', channelId)
+      .where('user_id', user.id)
+      .first()
+
+    if (!membership) {
+      return response.status(404).json({ message: 'Invitation not found' })
+    }
+
+    if (membership.invitationStatus !== 'pending') {
+      return response.status(400).json({ message: 'Invitation is not pending' })
+    }
+
+    membership.invitationStatus = 'accepted'
+    await membership.save()
+
+    return { message: 'Invitation accepted' }
+  }
+
+  /**
+   * Odmietni pozvanku do kanala (odstrani clenstvo).
+   */
+  async rejectInvite({ params, auth, response }: HttpContext) {
+    const user = await auth.getUserOrFail()
+    const channelId = Number(params.channelId)
+
+    const membership = await ChannelMember.query()
+      .where('channel_id', channelId)
+      .where('user_id', user.id)
+      .first()
+
+    if (!membership) {
+      return response.status(404).json({ message: 'Invitation not found' })
+    }
+
+    if (membership.invitationStatus !== 'pending') {
+      return response.status(400).json({ message: 'Invitation is not pending' })
+    }
+
+    await membership.delete()
+
+    return { message: 'Invitation rejected' }
   }
 }
 

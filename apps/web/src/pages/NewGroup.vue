@@ -267,13 +267,12 @@ async function createGroup() {
 
   loading.value = true
 
-  // For now we only send the group name and privacy flag.
-  // Member IDs are mocked in the frontend and do not match real user IDs in the DB yet.
   try {
     await api.post('/api/channels', {
       name: text.value.trim(),
       isPrivate: panel.value === 'private',
-      memberIds: [],
+      // Posielame vybratych clenov ako user IDs (string -> number)
+      memberIds: selectedMembers.value.map(id => Number(id)).filter(n => Number.isFinite(n) && n > 0),
     })
 
     // Refresh local channel list from API so sidebar sees the new group

@@ -61,12 +61,16 @@
   
   <script setup lang="ts">
   import { computed, watchEffect, inject, type Ref } from 'vue'
-  import { useRoute } from 'vue-router'
+  import { useRoute, useRouter } from 'vue-router'
   import { useChannelStore, type Channel } from 'src/stores/channel-store' 
+  import { api } from 'boot/axios'
+  import { useQuasar } from 'quasar'
   
   const channels = useChannelStore()
   const members = computed(() => channels.activeMembers)
   const route = useRoute()
+  const router = useRouter()
+  const $q = useQuasar()
   //Injektovaná (poskytovaná parentom) reaktívna hodnota Ref<boolean> - či sme na mobile alebo nie
   const isMobile = inject<Ref<boolean>>('isMobile')
   //injektovaná callback funkcia, ktorá prepína layout panel (napr. 'left' vs 'chat')
@@ -110,10 +114,35 @@
   const leaveGroup = () => {
   }
 
-  const acceptInvitation = () => {
+  // Akceptuje pozvanku, zavola backend a obnovi zoznam kanalov
+  const acceptInvitation = async () => {
+    if (!active.value || active.value.id === '_fallback') return
+    try {
+      await api.post(`/api/channels/${active.value.id}/accept`)
+      await channels.fetchChannels()
+      $q.notify({ type: 'positive', message: 'Invitation accepted', position: 'top' })
+    } catch (error: unknown) {
+      console.error('Accept invite failed:', error)
+      $q.notify({ type: 'negative', message: 'Failed to accept invitation', position: 'top' })
+    }
   }
 
-  const declineInvitation = () => {
+  // Odmietne pozvanku a ak kanal zmizne zo zoznamu, presmeruje na /app
+  const declineInvitation = async () => {
+    if (!active.value || active.value.id === '_fallback') return
+    const channelId = active.value.id
+    try {
+      await api.post(`/api/channels/${channelId}/reject`)
+      await channels.fetchChannels()
+      const stillThere = channels.channels.find(c => c.id === channelId)
+      if (!stillThere) {
+        await router.push('/app')
+      }
+      $q.notify({ type: 'info', message: 'Invitation declined', position: 'top' })
+    } catch (error: unknown) {
+      console.error('Decline invite failed:', error)
+      $q.notify({ type: 'negative', message: 'Failed to decline invitation', position: 'top' })
+    }
   }
   </script>
   

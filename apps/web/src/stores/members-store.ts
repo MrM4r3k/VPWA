@@ -42,6 +42,7 @@ export const useMembersStore = defineStore('members', {
         remove(id: string) { //Odstrániť člena podľa jeho id
             delete this.byId[id]
         },
+        // Nacita realnych userov z backendu a ulozi ich do byId
         async fetchAll() {
             const response = await api.get('/api/users')
             const users = response.data.users as { id: number; name: string; nickName: string; email?: string }[]

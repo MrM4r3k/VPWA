@@ -41,6 +41,8 @@ router
     router.get('/channels', [ChannelsController, 'index'])
     router.get('/channels/public', [ChannelsController, 'publicList'])
     router.post('/channels', [ChannelsController, 'store'])
+    router.post('/channels/:channelId/accept', [ChannelsController, 'acceptInvite'])
+    router.post('/channels/:channelId/reject', [ChannelsController, 'rejectInvite'])
   })
   .prefix('/api')
   .use(middleware.auth())
