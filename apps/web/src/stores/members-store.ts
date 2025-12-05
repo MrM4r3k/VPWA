@@ -47,7 +47,8 @@ export const useMembersStore = defineStore('members', {
             const response = await api.get('/api/users')
             const users = response.data.users as { id: number; name: string; nickName: string; email?: string }[]
 
-            const members: Member[] = users.map((u) => {
+            const next: Record<string, Member> = {}
+            users.forEach((u) => {
                 const member: Member = {
                     id: String(u.id),
                     name: u.name,
@@ -58,11 +59,11 @@ export const useMembersStore = defineStore('members', {
                 if (u.email) {
                     member.email = u.email
                 }
-
-                return member
+                next[member.id] = member
             })
 
-            this.upsertMany(members)
+            // Nahradime povodne mocky realnymi usermi
+            this.byId = next
         },
     }
 })

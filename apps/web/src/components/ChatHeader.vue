@@ -111,7 +111,24 @@
     return channels.activeChannel ?? channels.channels[0] ?? FALLBACK
   })
 
-  const leaveGroup = () => {
+  const leaveGroup = async () => {
+    if (!active.value || active.value.id === '_fallback') return
+    // Ownera nepustime (backend tiez vrati 400)
+    try {
+      await api.post(`/api/channels/${active.value.id}/leave`)
+      await channels.fetchChannels()
+      // Ak kanal zmizol zo zoznamu, presmeruj na /app
+      const stillThere = channels.channels.find(c => c.id === active.value.id)
+      if (!stillThere) {
+        await router.push('/app')
+      }
+      $q.notify({ type: 'info', message: 'You left the group', position: 'top' })
+    } catch (error: unknown) {
+      console.error('Leave group failed:', error)
+      const err = error as { response?: { data?: { message?: string } } }
+      const msg = err.response?.data?.message || 'Failed to leave group'
+      $q.notify({ type: 'negative', message: msg, position: 'top' })
+    }
   }
 
   // Akceptuje pozvanku, zavola backend a obnovi zoznam kanalov

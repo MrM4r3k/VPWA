@@ -198,7 +198,7 @@
   
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
-import { useChannelStore } from '../stores/channel-store'
+import { useChannelStore, type Channel } from '../stores/channel-store'
 import { useRouter } from 'vue-router'
 import { useMembersStore, type Member } from 'src/stores/members-store'
 import { api } from 'boot/axios'
@@ -216,13 +216,14 @@ const panel = ref('')
 const text = ref('')
 const selectedMembers = ref<string[]>([])
 const loading = ref(false)
+const publicChannels = ref<Channel[]>([])
+const loadingPublic = ref(false)
 
 //Zobrazenie skupín
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase()
-  // len public groups
-  const publicChannels = store.channels.filter(c => !c.isPrivate)
-  return q ? publicChannels.filter(c => c.channelName.toLowerCase().includes(q)) : publicChannels
+  const list = publicChannels.value
+  return q ? list.filter(c => c.channelName.toLowerCase().includes(q)) : list
 })
 
 //Zoznam všetkých členov podľa id
@@ -301,7 +302,21 @@ onMounted(() => {
   void store.fetchChannels()
   // Load real users from backend for member selection
   void ms.fetchAll()
+  // Load public channels for Search tab (only non-private)
+  void loadPublicChannels()
 })
+
+async function loadPublicChannels() {
+  loadingPublic.value = true
+  try {
+    const resp = await api.get('/api/channels/public')
+    publicChannels.value = (resp.data.channels ?? []) as Channel[]
+  } catch (error: unknown) {
+    console.error('Load public channels failed:', error)
+  } finally {
+    loadingPublic.value = false
+  }
+}
 
 
 </script>

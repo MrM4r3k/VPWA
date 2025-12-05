@@ -1,6 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Channel from '#models/channel'
 import ChannelMember from '#models/channel_member'
+import User from '#models/user'
+import db from '@adonisjs/lucid/services/db'
 
 export default class ChannelsController {
   /**
@@ -188,6 +190,157 @@ export default class ChannelsController {
     await membership.delete()
 
     return { message: 'Invitation rejected' }
+  }
+
+  /**
+   * Odchod z kanala (odstrani clenstvo). Ownerovi to nedovolime.
+   */
+  async leave({ params, auth, response }: HttpContext) {
+    const user = await auth.getUserOrFail()
+    const channelId = Number(params.channelId)
+
+    // Zistime kanal a clenstvo
+    const channel = await Channel.find(channelId)
+    if (!channel) {
+      return response.status(404).json({ message: 'Channel not found' })
+    }
+
+    if (channel.ownerId === user.id) {
+      // Owner moze odist len ak je v kanali sam; ak je sam, kanal rovno zmazeme
+      const memberCount = await ChannelMember.query().where('channel_id', channelId).count('* as total')
+      const total = Number(memberCount[0].$extras.total || 0)
+      if (total > 1) {
+        return response.status(400).json({ message: 'Owner cannot leave while other members are still in the channel' })
+      }
+      // Je tam sam -> vymazeme cely kanal (cascade zrusi aj clenstva)
+      await channel.delete()
+      return { message: 'Channel deleted because the owner left' }
+    }
+
+    const membership = await ChannelMember.query()
+      .where('channel_id', channelId)
+      .where('user_id', user.id)
+      .first()
+
+    if (!membership) {
+      return response.status(404).json({ message: 'Membership not found' })
+    }
+
+    await membership.delete()
+
+    return { message: 'Left channel' }
+  }
+
+  /**
+   * Promote member to owner (current owner only). Command: /promote <nick>
+   */
+  async promote({ params, auth, request, response }: HttpContext) {
+    const user = await auth.getUserOrFail()
+    const channelId = Number(params.channelId)
+    const rawNick =
+      request.input('nick') ?? request.input('nickname') ?? request.input('nickName') ?? ''
+    const nick = String(rawNick).trim()
+
+    if (!nick) {
+      return response.status(422).json({ message: 'Nickname is required' })
+    }
+
+    const channel = await Channel.find(channelId)
+    if (!channel) {
+      return response.status(404).json({ message: 'Channel not found' })
+    }
+
+    if (channel.ownerId !== user.id) {
+      return response.status(403).json({ message: 'Only owner can promote another member' })
+    }
+
+    const targetUser = await User.query().where('nick_name', nick).first()
+    if (!targetUser) {
+      return response.status(404).json({ message: 'User with this nickname not found' })
+    }
+
+    if (targetUser.id === user.id) {
+      return response.status(400).json({ message: 'You are already the owner' })
+    }
+
+    const targetMembership = await ChannelMember.query()
+      .where('channel_id', channelId)
+      .where('user_id', targetUser.id)
+      .first()
+
+    if (!targetMembership) {
+      return response.status(400).json({ message: 'User is not a member of this channel' })
+    }
+
+    const currentOwnerMembership = await ChannelMember.query()
+      .where('channel_id', channelId)
+      .where('user_id', user.id)
+      .first()
+
+    await db.transaction(async (trx) => {
+      channel.useTransaction(trx)
+      targetMembership.useTransaction(trx)
+      currentOwnerMembership?.useTransaction(trx)
+
+      channel.ownerId = targetUser.id
+      await channel.save()
+
+      targetMembership.role = 'owner'
+      await targetMembership.save()
+
+      if (currentOwnerMembership) {
+        currentOwnerMembership.role = 'member'
+        await currentOwnerMembership.save()
+      }
+    })
+
+    return { message: 'Ownership transferred' }
+  }
+
+  /**
+   * Kick member from channel (only owner). Command: /kick <nick>
+   */
+  async kick({ params, auth, request, response }: HttpContext) {
+    const user = await auth.getUserOrFail()
+    const channelId = Number(params.channelId)
+    const rawNick =
+      request.input('nick') ?? request.input('nickname') ?? request.input('nickName') ?? ''
+    const nick = String(rawNick).trim()
+
+    if (!nick) {
+      return response.status(422).json({ message: 'Nickname is required' })
+    }
+
+    const channel = await Channel.find(channelId)
+    if (!channel) {
+      return response.status(404).json({ message: 'Channel not found' })
+    }
+
+    if (channel.ownerId !== user.id) {
+      return response.status(403).json({ message: 'Only owner can kick members' })
+    }
+
+    const targetUser = await User.query().where('nick_name', nick).first()
+    if (!targetUser) {
+      return response.status(404).json({ message: 'User with this nickname not found' })
+    }
+
+    if (targetUser.id === user.id) {
+      return response.status(400).json({ message: 'Owner cannot kick themselves' })
+    }
+
+    const membership = await ChannelMember.query()
+      .where('channel_id', channelId)
+      .where('user_id', targetUser.id)
+      .first()
+
+    if (!membership) {
+      return response.status(400).json({ message: 'User is not a member of this channel' })
+    }
+
+    await membership.delete()
+
+    return { message: 'Member removed' }
   }
 }
 

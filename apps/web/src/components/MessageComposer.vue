@@ -32,9 +32,10 @@
 </template>
   
   <script setup lang="ts">
-  import { computed,ref } from 'vue'
-  import { useQuasar } from 'quasar'
-  import { useChannelStore, type Channel } from 'src/stores/channel-store'
+import { computed,ref } from 'vue'
+import { useQuasar } from 'quasar'
+import { useChannelStore, type Channel } from 'src/stores/channel-store'
+import { api } from 'boot/axios'
   
   const channels = useChannelStore()
   const $q = useQuasar()
@@ -59,6 +60,22 @@
     return
   }
   
+ // /promote <nick>
+ const promoteMatch = text.value.trim().match(/^\/promote\s+(@?)(\S+)/i)
+ if (promoteMatch) {
+  const nick = promoteMatch[2] ?? ''
+  void handlePromote(nick)
+   return
+ }
+
+// /kick <nick>
+const kickMatch = text.value.trim().match(/^\/kick\s+(@?)(\S+)/i)
+if (kickMatch) {
+  const nick = kickMatch[2] ?? ''
+  void handleKick(nick)
+  return
+}
+
   submit()
 }
 
@@ -79,6 +96,58 @@ function onInput() {
   if (text.value.trim() === '/list') {
     emit('showMembers')
     text.value = '' // Clear the input after showing popup
+  }
+}
+
+async function handlePromote(nick: string) {
+  if (!active.value) return
+  const cleanNick = nick.replace(/^@/, '').trim()
+  if (!cleanNick) return
+  try {
+    await api.post(`/api/channels/${active.value.id}/promote`, { nick: cleanNick })
+    await channels.fetchChannels()
+    $q.notify({
+      type: 'positive',
+      message: `Promoted ${cleanNick} to owner`,
+      position: 'top',
+    })
+  } catch (error: unknown) {
+    console.error('Promote failed:', error)
+    const err = error as { response?: { data?: { message?: string } } }
+    const msg = err.response?.data?.message || 'Failed to promote'
+    $q.notify({
+      type: 'negative',
+      message: msg,
+      position: 'top',
+    })
+  } finally {
+    text.value = ''
+  }
+}
+
+async function handleKick(nick: string) {
+  if (!active.value) return
+  const cleanNick = nick.replace(/^@/, '').trim()
+  if (!cleanNick) return
+  try {
+    await api.post(`/api/channels/${active.value.id}/kick`, { nick: cleanNick })
+    await channels.fetchChannels()
+    $q.notify({
+      type: 'info',
+      message: `Removed ${cleanNick} from group`,
+      position: 'top',
+    })
+  } catch (error: unknown) {
+    console.error('Kick failed:', error)
+    const err = error as { response?: { data?: { message?: string } } }
+    const msg = err.response?.data?.message || 'Failed to remove member'
+    $q.notify({
+      type: 'negative',
+      message: msg,
+      position: 'top',
+    })
+  } finally {
+    text.value = ''
   }
 }
 
