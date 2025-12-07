@@ -61,7 +61,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { type Member } from 'src/stores/members-store'
+import { type Member, useMembersStore } from 'src/stores/members-store'
 import { useChannelStore } from 'src/stores/channel-store'
 
 // Prop je visible (true/false), či má byť popup otvorený.
@@ -75,6 +75,7 @@ const emit = defineEmits<{
 }>()
 
 const channels = useChannelStore()
+const members = useMembersStore()
 
 // Umožní používať visible ako boolean v template, computed je na stále prepočítavanie
 const isVisible = computed({
@@ -86,7 +87,35 @@ const isVisible = computed({
 const search = ref('')
 
 // Zobrazuj len členov aktívnej skupiny
-const activeMembers = computed<Member[]>(() => channels.activeMembers)
+const activeMembers = computed<Member[]>(() => {
+  const membersList = channels.activeMembers
+  // Ak sú členovia prázdni, skús načítať z API
+  if (membersList.length === 0 && channels.activeChannel) {
+    // Members môžu chýbať v store, takže načítame všetkých používateľov
+    void loadMembersIfNeeded()
+  }
+  return membersList
+})
+
+// Načíta členov z API ak chýbajú v store
+async function loadMembersIfNeeded() {
+  if (!channels.activeChannel) return
+  
+  const memberIds = channels.activeChannel.memberIds
+  if (memberIds.length === 0) return
+  
+  // Skontroluj, či všetci členovia sú v store
+  const missingIds = memberIds.filter(id => !members.getById(id))
+  
+  if (missingIds.length > 0) {
+    // Načítaj všetkých používateľov z API
+    try {
+      await members.fetchAll()
+    } catch (error) {
+      console.error('Failed to load members:', error)
+    }
+  }
+}
 
 //Filtrované pole členov
 const filteredMembers = computed<Member[]>(() => {           
@@ -118,11 +147,13 @@ function isOwner(m: Member) {
   return ownerId.value !== null && m.id === ownerId.value
 }
 
-// Watch for visibility changes to reset form
+// Watch for visibility changes to reset form and load members
 watch(() => props.visible, (newVal) => {
   if (newVal) {
     // Reset form when opening
     search.value = ''
+    // Load members if needed
+    void loadMembersIfNeeded()
   }
 })
 </script>

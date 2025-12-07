@@ -1,18 +1,15 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 
-export default class Channel extends BaseModel {
+export default class ChannelBan extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
-  @column()
-  declare name: string
+  @column({ columnName: 'channel_id' })
+  declare channelId: number
 
-  @column({ columnName: 'is_private' })
-  declare isPrivate: boolean
-
-  @column({ columnName: 'owner_id' })
-  declare ownerId: number
+  @column({ columnName: 'user_id' })
+  declare userId: number
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -20,6 +17,4 @@ export default class Channel extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
 }
-
-
 

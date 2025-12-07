@@ -1,15 +1,22 @@
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
 export default class extends BaseSchema {
-  protected tableName = 'channels'
+  protected tableName = 'channel_bans'
 
   async up() {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id').notNullable()
-      table.string('name').notNullable()
-      table.boolean('is_private').notNullable().defaultTo(false)
+
       table
-        .integer('owner_id')
+        .integer('channel_id')
+        .unsigned()
+        .notNullable()
+        .references('id')
+        .inTable('channels')
+        .onDelete('CASCADE')
+
+      table
+        .integer('user_id')
         .unsigned()
         .notNullable()
         .references('id')
@@ -18,6 +25,9 @@ export default class extends BaseSchema {
 
       table.timestamp('created_at').notNullable()
       table.timestamp('updated_at').nullable()
+
+      // User can be banned only once per channel
+      table.unique(['channel_id', 'user_id'])
     })
   }
 
@@ -25,6 +35,3 @@ export default class extends BaseSchema {
     this.schema.dropTable(this.tableName)
   }
 }
-
-
-

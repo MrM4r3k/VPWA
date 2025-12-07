@@ -49,7 +49,7 @@
               @click="leaveGroup"
               :disable="!active || active.id === '_fallback'"
             >
-              <span class="btn-text">Leave Group</span>
+              <span class="btn-text">{{ isOwner ? 'Cancel Group' : 'Leave Group' }}</span>
             </q-btn>
           </template>
           <!-- Mobile open members (positioned on far right) -->
@@ -60,7 +60,7 @@
   </template>
   
   <script setup lang="ts">
-  import { computed, watchEffect, inject, type Ref } from 'vue'
+  import { computed, watchEffect, inject, ref, onMounted, type Ref } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useChannelStore, type Channel } from 'src/stores/channel-store' 
   import { api } from 'boot/axios'
@@ -75,6 +75,19 @@
   const isMobile = inject<Ref<boolean>>('isMobile')
   //injektovaná callback funkcia, ktorá prepína layout panel (napr. 'left' vs 'chat')
   const setActivePanel = inject<((p: 'left'|'chat') => void)>('setActivePanel')
+  
+  // Current user ID
+  const currentUserId = ref<string | null>(null)
+  
+  // Load current user on mount
+  onMounted(async () => {
+    try {
+      const response = await api.get('/api/auth/me')
+      currentUserId.value = String(response.data.user.id)
+    } catch (error) {
+      console.error('Failed to load current user:', error)
+    }
+  })
 
   //Na mobile vráti dozadu do ľavého panelu (zoznam kanálov)
   function goBackToChannels() {
@@ -110,19 +123,29 @@
     }
     return channels.activeChannel ?? channels.channels[0] ?? FALLBACK
   })
+  
+  // Check if current user is owner of the active channel
+  const isOwner = computed(() => {
+    if (!currentUserId.value || !active.value) return false
+    return active.value.ownerId === currentUserId.value
+  })
 
   const leaveGroup = async () => {
     if (!active.value || active.value.id === '_fallback') return
-    // Ownera nepustime (backend tiez vrati 400)
     try {
       await api.post(`/api/channels/${active.value.id}/leave`)
       await channels.fetchChannels()
-      // Ak kanal zmizol zo zoznamu, presmeruj na /app
+      // Ak kanal zmizol zo zoznamu (napr. owner ho zrusil), presmeruj na /app
       const stillThere = channels.channels.find(c => c.id === active.value.id)
       if (!stillThere) {
         await router.push('/app')
       }
-      $q.notify({ type: 'info', message: 'You left the group', position: 'top' })
+      // Rozdielne notifikacie podla role
+      if (isOwner.value) {
+        $q.notify({ type: 'info', message: 'Group cancelled', position: 'top' })
+      } else {
+        $q.notify({ type: 'info', message: 'You left the group', position: 'top' })
+      }
     } catch (error: unknown) {
       console.error('Leave group failed:', error)
       const err = error as { response?: { data?: { message?: string } } }

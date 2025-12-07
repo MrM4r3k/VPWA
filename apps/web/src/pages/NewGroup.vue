@@ -218,6 +218,7 @@ const selectedMembers = ref<string[]>([])
 const loading = ref(false)
 const publicChannels = ref<Channel[]>([])
 const loadingPublic = ref(false)
+const currentUserId = ref<string | null>(null)
 
 //Zobrazenie skupín
 const filtered = computed(() => {
@@ -226,8 +227,15 @@ const filtered = computed(() => {
   return q ? list.filter(c => c.channelName.toLowerCase().includes(q)) : list
 })
 
-//Zoznam všetkých členov podľa id
-const allMembers = computed<Member[]>(() => Object.values(ms.byId))
+//Zoznam všetkých členov podľa id (bez aktuálneho používateľa)
+const allMembers = computed<Member[]>(() => {
+  const members = Object.values(ms.byId)
+  // Odfiltruj aktuálneho používateľa
+  if (currentUserId.value) {
+    return members.filter(m => m.id !== currentUserId.value)
+  }
+  return members
+})
 
 //Filtrované pole členov
 const filteredMembers = computed<Member[]>(() => {     
@@ -243,9 +251,42 @@ function initials(name: string) {
   return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() //Prvé písmeno z mena a prvé z druhého mena
 }
 
-function open(id: string) {
-  // prejdi na chat route: /app/c/:channelId
-  void router.push({ name: 'chat', params: { channelId: id } })
+async function open(id: string) {
+  // Najdi kanál podľa ID
+  const channel = publicChannels.value.find(c => c.id === id)
+  if (!channel) return
+  
+  loadingPublic.value = true
+  try {
+    // Použi /join endpoint na join do kanálu
+    await api.post('/api/channels/join', {
+      channelName: channel.channelName,
+      private: false,
+    })
+    
+    // Refresh zoznam kanálov
+    await store.fetchChannels()
+    
+    // Naviguj do kanálu
+    await router.push({ name: 'chat', params: { channelId: id } })
+    
+    $q.notify({
+      type: 'positive',
+      message: `Joined ${channel.channelName}`,
+      position: 'top',
+    })
+  } catch (error: unknown) {
+    console.error('Join channel failed:', error)
+    const err = error as { response?: { data?: { message?: string } } }
+    const msg = err.response?.data?.message || 'Failed to join channel'
+    $q.notify({
+      type: 'negative',
+      message: msg,
+      position: 'top',
+    })
+  } finally {
+    loadingPublic.value = false
+  }
 }
 
 function goBack() {
@@ -297,13 +338,21 @@ async function createGroup() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   // Ensure we have an up-to-date list of channels when opening this page
   void store.fetchChannels()
   // Load real users from backend for member selection
   void ms.fetchAll()
   // Load public channels for Search tab (only non-private)
   void loadPublicChannels()
+  
+  // Load current user ID
+  try {
+    const response = await api.get('/api/auth/me')
+    currentUserId.value = String(response.data.user.id)
+  } catch (error) {
+    console.error('Failed to load current user:', error)
+  }
 })
 
 async function loadPublicChannels() {

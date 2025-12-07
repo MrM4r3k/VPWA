@@ -1,6 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Channel from '#models/channel'
 import ChannelMember from '#models/channel_member'
+import ChannelKick from '#models/channel_kick'
+import ChannelBan from '#models/channel_ban'
 import User from '#models/user'
 import db from '@adonisjs/lucid/services/db'
 
@@ -93,6 +95,12 @@ export default class ChannelsController {
 
     if (!name) {
       return response.status(422).json({ message: 'Channel name is required' })
+    }
+
+    // Check if channel name already exists
+    const existingChannel = await Channel.query().where('name', name).first()
+    if (existingChannel) {
+      return response.status(400).json({ message: 'Channel with this name already exists' })
     }
 
     // Create channel
@@ -193,7 +201,8 @@ export default class ChannelsController {
   }
 
   /**
-   * Odchod z kanala (odstrani clenstvo). Ownerovi to nedovolime.
+   * Odchod z kanala (odstrani clenstvo). 
+   * Ak je to owner, kanal sa zmaze (podla zadania: /cancel pre owner = zrusenie kanala).
    */
   async leave({ params, auth, response }: HttpContext) {
     const user = await auth.getUserOrFail()
@@ -206,13 +215,7 @@ export default class ChannelsController {
     }
 
     if (channel.ownerId === user.id) {
-      // Owner moze odist len ak je v kanali sam; ak je sam, kanal rovno zmazeme
-      const memberCount = await ChannelMember.query().where('channel_id', channelId).count('* as total')
-      const total = Number(memberCount[0].$extras.total || 0)
-      if (total > 1) {
-        return response.status(400).json({ message: 'Owner cannot leave while other members are still in the channel' })
-      }
-      // Je tam sam -> vymazeme cely kanal (cascade zrusi aj clenstva)
+      // Owner moze odist kedykolvek - kanal sa zmaze (cascade zrusi aj clenstva)
       await channel.delete()
       return { message: 'Channel deleted because the owner left' }
     }
@@ -298,7 +301,10 @@ export default class ChannelsController {
   }
 
   /**
-   * Kick member from channel (only owner). Command: /kick <nick>
+   * Kick member from channel. Command: /kick <nick>
+   * - V public kanálech: jakýkoliv člen může kickovat
+   * - Po 3 kickech od různých členů = trvalý ban
+   * - Owner může kickovat "natrvalo" kdykoliv
    */
   async kick({ params, auth, request, response }: HttpContext) {
     const user = await auth.getUserOrFail()
@@ -316,8 +322,224 @@ export default class ChannelsController {
       return response.status(404).json({ message: 'Channel not found' })
     }
 
-    if (channel.ownerId !== user.id) {
-      return response.status(403).json({ message: 'Only owner can kick members' })
+    const targetUser = await User.query().where('nick_name', nick).first()
+    if (!targetUser) {
+      return response.status(404).json({ message: 'User with this nickname not found' })
+    }
+
+    if (targetUser.id === user.id) {
+      return response.status(400).json({ message: 'You cannot kick yourself' })
+    }
+
+    // Check if user is a member of the channel
+    const userMembership = await ChannelMember.query()
+      .where('channel_id', channelId)
+      .where('user_id', user.id)
+      .where('invitation_status', 'accepted')
+      .first()
+
+    if (!userMembership) {
+      return response.status(403).json({ message: 'You are not a member of this channel' })
+    }
+
+    const targetMembership = await ChannelMember.query()
+      .where('channel_id', channelId)
+      .where('user_id', targetUser.id)
+      .first()
+
+    if (!targetMembership) {
+      return response.status(400).json({ message: 'User is not a member of this channel' })
+    }
+
+    const isOwner = channel.ownerId === user.id
+
+    // Check if target is banned
+    const existingBan = await ChannelBan.query()
+      .where('channel_id', channelId)
+      .where('user_id', targetUser.id)
+      .first()
+
+    if (existingBan && !isOwner) {
+      return response.status(400).json({ message: 'User is already banned from this channel' })
+    }
+
+    // In private channels, only owner can kick
+    if (channel.isPrivate && !isOwner) {
+      return response.status(403).json({ message: 'Only owner can kick members in private channels' })
+    }
+
+    // If owner kicks, it's permanent ban (owner can kick anytime, even if already banned)
+    if (isOwner) {
+      // Track the kick
+      await ChannelKick.create({
+        channelId,
+        kickedUserId: targetUser.id,
+        kickedByUserId: user.id,
+      })
+      
+      // Remove membership
+      await targetMembership.delete()
+      
+      // Create permanent ban if not already banned
+      if (!existingBan) {
+        await ChannelBan.create({
+          channelId,
+          userId: targetUser.id,
+        })
+      }
+      return { message: 'Member permanently banned' }
+    }
+
+    // In public channels, any member can kick
+    // But first check if user is already banned (non-owners can't kick banned users)
+    if (existingBan) {
+      return response.status(400).json({ message: 'User is already banned from this channel' })
+    }
+
+    // Track the kick
+    await ChannelKick.create({
+      channelId,
+      kickedUserId: targetUser.id,
+      kickedByUserId: user.id,
+    })
+
+    // In public channels, check if 3 different members have kicked this user
+    // Get unique kickers (distinct kicked_by_user_id) - including the current kick
+    const uniqueKickersResult = await db
+      .from('channel_kicks')
+      .where('channel_id', channelId)
+      .where('kicked_user_id', targetUser.id)
+      .select('kicked_by_user_id')
+      .distinct('kicked_by_user_id')
+
+    const uniqueKickerCount = uniqueKickersResult.length
+
+    if (uniqueKickerCount >= 3) {
+      // Permanent ban after 3 different members kick
+      await targetMembership.delete()
+      await ChannelBan.create({
+        channelId,
+        userId: targetUser.id,
+      })
+      return { message: 'Member permanently banned (3 kicks from different members)' }
+    }
+
+    // Just remove membership (temporary kick)
+    await targetMembership.delete()
+    return { message: 'Member removed' }
+  }
+
+  /**
+   * Join or create channel. Command: /join channelName [private]
+   */
+  async join({ request, auth, response }: HttpContext) {
+    const user = await auth.getUserOrFail()
+    const channelName = String(request.input('channelName') ?? '').trim()
+    const isPrivate = Boolean(request.input('private') ?? request.input('isPrivate') ?? false)
+
+    if (!channelName) {
+      return response.status(422).json({ message: 'Channel name is required' })
+    }
+
+    // Check if channel exists
+    let channel = await Channel.query().where('name', channelName).first()
+
+    if (channel) {
+      // Channel exists - join it
+      // Check if user is banned
+      const ban = await ChannelBan.query()
+        .where('channel_id', channel.id)
+        .where('user_id', user.id)
+        .first()
+
+      if (ban) {
+        return response.status(403).json({ message: 'You are banned from this channel' })
+      }
+
+      // Check if already a member
+      const existingMembership = await ChannelMember.query()
+        .where('channel_id', channel.id)
+        .where('user_id', user.id)
+        .first()
+
+      if (existingMembership) {
+        return response.status(400).json({ message: 'You are already a member of this channel' })
+      }
+
+      // For private channels, only owner can add members
+      if (channel.isPrivate) {
+        return response.status(403).json({ message: 'This is a private channel. You need an invitation.' })
+      }
+
+      // Join public channel
+      await ChannelMember.create({
+        channelId: channel.id,
+        userId: user.id,
+        role: 'member',
+        invitationStatus: 'accepted',
+        unreadCount: 0,
+      })
+
+      return { message: 'Joined channel', channelId: String(channel.id) }
+    } else {
+      // Channel doesn't exist - create it
+      channel = await Channel.create({
+        name: channelName,
+        isPrivate,
+        ownerId: user.id,
+      })
+
+      // Add creator as owner
+      await ChannelMember.create({
+        channelId: channel.id,
+        userId: user.id,
+        role: 'owner',
+        invitationStatus: 'accepted',
+        unreadCount: 0,
+      })
+
+      return response.status(201).json({
+        message: 'Channel created',
+        channelId: String(channel.id),
+      })
+    }
+  }
+
+  /**
+   * Invite user to channel. Command: /invite nickName
+   * - Private channels: only owner can invite
+   * - Public channels: any member can invite
+   */
+  async invite({ params, auth, request, response }: HttpContext) {
+    const user = await auth.getUserOrFail()
+    const channelId = Number(params.channelId)
+    const rawNick =
+      request.input('nick') ?? request.input('nickname') ?? request.input('nickName') ?? ''
+    const nick = String(rawNick).trim()
+
+    if (!nick) {
+      return response.status(422).json({ message: 'Nickname is required' })
+    }
+
+    const channel = await Channel.find(channelId)
+    if (!channel) {
+      return response.status(404).json({ message: 'Channel not found' })
+    }
+
+    // Check if user is a member
+    const userMembership = await ChannelMember.query()
+      .where('channel_id', channelId)
+      .where('user_id', user.id)
+      .where('invitation_status', 'accepted')
+      .first()
+
+    if (!userMembership) {
+      return response.status(403).json({ message: 'You are not a member of this channel' })
+    }
+
+    // For private channels, only owner can invite
+    if (channel.isPrivate && channel.ownerId !== user.id) {
+      return response.status(403).json({ message: 'Only owner can invite to private channels' })
     }
 
     const targetUser = await User.query().where('nick_name', nick).first()
@@ -326,7 +548,84 @@ export default class ChannelsController {
     }
 
     if (targetUser.id === user.id) {
-      return response.status(400).json({ message: 'Owner cannot kick themselves' })
+      return response.status(400).json({ message: 'You cannot invite yourself' })
+    }
+
+    // Check if user is banned
+    const ban = await ChannelBan.query()
+      .where('channel_id', channelId)
+      .where('user_id', targetUser.id)
+      .first()
+
+    if (ban) {
+      // Owner can unban by inviting
+      if (channel.ownerId === user.id) {
+        await ban.delete()
+      } else {
+        return response.status(403).json({ message: 'User is banned from this channel' })
+      }
+    }
+
+    // Check if already a member
+    const existingMembership = await ChannelMember.query()
+      .where('channel_id', channelId)
+      .where('user_id', targetUser.id)
+      .first()
+
+    if (existingMembership) {
+      if (existingMembership.invitationStatus === 'pending') {
+        return response.status(400).json({ message: 'User already has a pending invitation' })
+      }
+      return response.status(400).json({ message: 'User is already a member of this channel' })
+    }
+
+    // Create invitation
+    await ChannelMember.create({
+      channelId,
+      userId: targetUser.id,
+      role: 'member',
+      invitationStatus: 'pending',
+      unreadCount: 0,
+    })
+
+    return { message: 'Invitation sent' }
+  }
+
+  /**
+   * Revoke user from private channel. Command: /revoke nickName
+   * Only owner can revoke from private channels
+   */
+  async revoke({ params, auth, request, response }: HttpContext) {
+    const user = await auth.getUserOrFail()
+    const channelId = Number(params.channelId)
+    const rawNick =
+      request.input('nick') ?? request.input('nickname') ?? request.input('nickName') ?? ''
+    const nick = String(rawNick).trim()
+
+    if (!nick) {
+      return response.status(422).json({ message: 'Nickname is required' })
+    }
+
+    const channel = await Channel.find(channelId)
+    if (!channel) {
+      return response.status(404).json({ message: 'Channel not found' })
+    }
+
+    if (!channel.isPrivate) {
+      return response.status(400).json({ message: 'Revoke is only available for private channels' })
+    }
+
+    if (channel.ownerId !== user.id) {
+      return response.status(403).json({ message: 'Only owner can revoke members from private channels' })
+    }
+
+    const targetUser = await User.query().where('nick_name', nick).first()
+    if (!targetUser) {
+      return response.status(404).json({ message: 'User with this nickname not found' })
+    }
+
+    if (targetUser.id === user.id) {
+      return response.status(400).json({ message: 'Owner cannot revoke themselves' })
     }
 
     const membership = await ChannelMember.query()
@@ -341,6 +640,28 @@ export default class ChannelsController {
     await membership.delete()
 
     return { message: 'Member removed' }
+  }
+
+  /**
+   * Quit channel (delete channel). Command: /quit
+   * Only owner can quit (delete) channel
+   */
+  async quit({ params, auth, response }: HttpContext) {
+    const user = await auth.getUserOrFail()
+    const channelId = Number(params.channelId)
+
+    const channel = await Channel.find(channelId)
+    if (!channel) {
+      return response.status(404).json({ message: 'Channel not found' })
+    }
+
+    if (channel.ownerId !== user.id) {
+      return response.status(403).json({ message: 'Only owner can quit (delete) channel' })
+    }
+
+    await channel.delete()
+
+    return { message: 'Channel deleted' }
   }
 }
 
