@@ -18,16 +18,18 @@
         class="message-row"
         :class="{ 'is-mention': isMentionForMe(msg.text) }"
       >
-        <div class="avatar">{{ getInitials(msg.author.name) }}</div>
+        <div class="avatar">{{ getInitials(msg.author?.name ?? '?') }}</div>
         <div class="bubble">
           <div class="meta">
-            <span class="author">{{ msg.author.name }}</span>
-            <span class="time">{{ msg.time }}</span>
+            <span class="author">{{ msg.author?.name ?? 'Unknown' }}</span>
+            <span class="time">{{ formatTime(msg.createdAt) }}</span>
           </div>
           <div class="text" v-html="renderText(msg.text)"></div>
         </div>
       </div>
     </q-infinite-scroll>
+    
+    <div v-if="hasTyping" class="typing-inline">Someone is typing…</div>
     
     <!-- Blur overlay when invite is pending -->
     <div v-if="hasPendingInvite" class="invite-blur-overlay">
@@ -41,92 +43,46 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { useChannelStore, type Channel } from 'src/stores/channel-store'
-import { useMembersStore, type Member } from 'src/stores/members-store'
-
-type Msg = {
-  id: string
-  channelId: string
-  author: Member
-  text: string
-  time: string
-}
+import { computed, watch } from 'vue'
+import { useChannelStore } from 'src/stores/channel-store'
+import { useMessageStore, type Message } from 'src/stores/message-store'
+import { useTypingStore } from 'src/stores/typing-store'
+import { date } from 'quasar'
 
 const channels = useChannelStore()
-const members = useMembersStore()
+const messages = useMessageStore()
+const typing = useTypingStore()
 
 // scroll target passed from parent (IndexPage -> q-scroll-area)
 const { scrollTarget } = defineProps<{ scrollTarget?: string | Element | undefined }>()
 
-// GUI-only: pick a fixed current user from the mock data
-const CURRENT_USER_ID = 'u1'
-const currentUser = computed<Member | null>(() => members.getById(CURRENT_USER_ID) ?? null)
+// Current authenticated user is loaded elsewhere; we just read member nicknames for display
+const hasPendingInvite = computed(() => channels.activeChannel?.isInvited === true)
 
-// Check if active channel has pending invite
-const hasPendingInvite = computed(() => {
-  const active = channels.activeChannel
-  return active?.isInvited === true
-})
+const activeChannelId = computed(() => channels.activeChannelId)
 
-// Mock messages per channel (GUI-only)
-const mockMessages = computed<Msg[]>(() => {
-  const active: Channel | null = channels.activeChannel
-  if (!active) return []
-
-  const m = (id: string) => members.getById(id)
-  const safe = (u: Member | undefined) => u ?? { id: 'x', name: 'Unknown', nickName: 'unknown', status: 'offline' }
-
-  // Simple different sets by channelId
-  if (active.id === 't1') {
-    return [
-      { id: 'm1', channelId: 't1', author: safe(m('u2')), text: 'Morning team! Stand-up at 10:00. @sarah can you share the API update?', time: '09:12' },
-      { id: 'm2', channelId: 't1', author: safe(m('u1')), text: 'Sure, I will post a summary after the call.', time: '09:15' },
-      { id: 'm3', channelId: 't1', author: safe(m('u3')), text: 'Quick note: deployment moved to 14:30. @mike123 please review the checklist.', time: '09:18' },
-      { id: 'm4', channelId: 't1', author: safe(m('u6')), text: 'I have added the metrics panel. Feedback welcome.', time: '09:25' },
-      { id: 'm5', channelId: 't1', author: safe(m('u7')), text: 'Design draft uploaded. @sarah what do you think?', time: '09:41' },
-    ]
-  }
-  if (active.id === 't2') {
-    return [
-      { id: 'm6', channelId: 't2', author: safe(m('u2')), text: 'Backend crew sync in 5. @david bring the logs please.', time: '11:00' },
-      { id: 'm7', channelId: 't2', author: safe(m('u4')), text: 'On it. Also found a race condition in worker-2.', time: '11:01' },
-    ]
-  }
-  // default set
-  return [
-    { id: 'm8', channelId: active.id, author: safe(m('u3')), text: 'Welcome to ' + active.channelName + '!', time: '08:00' },
-    { id: 'm9', channelId: active.id, author: safe(m('u1')), text: 'Ping @' + (currentUser.value?.nickName ?? 'me') + ' to test mention highlight.', time: '08:05' },
-  ]
-})
-
-// local reactive copy that we can prepend older messages into
-const list = ref<Msg[]>([])
-
-watch(mockMessages, (arr) => {
-  list.value = [...arr]
+// load messages when channel changes
+watch(activeChannelId, async (id) => {
+  if (!id) return
+  await messages.fetchInitial(id)
 }, { immediate: true })
 
-const visibleMessages = computed(() => list.value)
+const visibleMessages = computed(() => messages.listByChannel(activeChannelId.value))
 
-function onLoad(index: number, done: () => void) {
-  // simulate loading older history and prepend
-  setTimeout(() => {
-    const active: Channel | null = channels.activeChannel
-    if (!active) { done(); return }
-    const author = members.getById('u2') || members.getById('u1') || {
-      id: 'x', name: 'Unknown', nickName: 'unknown', status: 'offline'
-    }
-    const make = (i: number): Msg => ({
-      id: `old-${index}-${i}-${Date.now()}-${Math.random()}`,
-      channelId: active.id,
-      author,
-      text: `Older message #${i} for ${active.channelName}`,
-      time: '07:5' + i,
-    })
-    list.value.splice(0, 0, make(1), make(2), make(3), make(4), make(5), make(6), make(7))
+const hasTyping = computed(() => {
+  const cid = activeChannelId.value
+  if (!cid) return false
+  return typing.listByChannel(cid).length > 0
+})
+
+async function onLoad(_index: number, done: () => void) {
+  const activeId = activeChannelId.value
+  if (!activeId) {
     done()
-  }, 800)
+    return
+  }
+  await messages.fetchOlder(activeId)
+  done()
 }
 
 function getInitials(name: string): string {
@@ -138,13 +94,9 @@ function getInitials(name: string): string {
     .join('')
 }
 
-function isMentionForMe(text: string): boolean {
-  const me = currentUser.value
-  if (!me) return false
-  const nick = me.nickName
-  if (!nick) return false
-  const re = new RegExp(`(^\\s|\\s)@${escapeRegExp(nick)}(?=\\b)`, 'i')
-  return re.test(text)
+function isMentionForMe(msg: string | Message): boolean {
+  if (typeof msg === 'string') return false
+  return msg.isMentionForMe === true
 }
 
 function renderText(text: string): string {
@@ -153,8 +105,9 @@ function renderText(text: string): string {
   return text.replace(mentionRe, (m, p1, p2) => `${p1}<span class="mention">@${p2}</span>`)
 }
 
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+function formatTime(iso?: string): string {
+  if (!iso) return ''
+  return date.formatDate(iso, 'HH:mm')
 }
 </script>
 

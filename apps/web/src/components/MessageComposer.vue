@@ -36,8 +36,10 @@ import { computed,ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { useChannelStore, type Channel } from 'src/stores/channel-store'
 import { api } from 'boot/axios'
+import { useMessageStore } from 'src/stores/message-store'
   
-  const channels = useChannelStore()
+const channels = useChannelStore()
+const messages = useMessageStore()
   const $q = useQuasar()
   const active = computed<Channel | null>(() => channels.activeChannel)
   const text = ref('')
@@ -45,7 +47,7 @@ import { api } from 'boot/axios'
   const canSend = computed(() => !!text.value.trim())
   const hasPendingInvite = computed(() => active.value?.isInvited === true)
   
-  const emit = defineEmits<{
+const emit = defineEmits<{
   (e: 'submit', payload: { text: string; channelId: string }): void
   (e: 'showMembers'): void
 }>()
@@ -123,9 +125,7 @@ function submit() {
   if (!active.value || hasPendingInvite.value) return
   const val = text.value.trim()
   if (!val) return
-  emit('submit', { text: val, channelId: active.value.id })
-  text.value = ''
-  cmdMenu.value = false
+  void sendMessage(val)
 }
 //Keď používateľ napíše /list, vyvolajú sa členovia
 function onInput() {
@@ -136,6 +136,9 @@ function onInput() {
     emit('showMembers')
     text.value = '' // Clear the input after showing popup
   }
+
+  // fire typing notification (debounced by server side TTL)
+  void sendTyping()
 }
 
 async function handlePromote(nick: string) {
@@ -326,6 +329,38 @@ async function handleRevoke(nick: string) {
     })
   } finally {
     text.value = ''
+  }
+}
+
+async function sendMessage(val: string) {
+  if (!active.value) return
+  try {
+    await messages.send(active.value.id, val)
+    emit('submit', { text: val, channelId: active.value.id })
+  } catch (error: unknown) {
+    console.error('Send message failed:', error)
+    const err = error as { response?: { data?: { message?: string } } }
+    const msg = err.response?.data?.message || 'Failed to send message'
+    $q.notify({
+      type: 'negative',
+      message: msg,
+      position: 'top',
+    })
+  } finally {
+    text.value = ''
+    cmdMenu.value = false
+  }
+}
+
+let typingCooldown = false
+async function sendTyping() {
+  if (typingCooldown || !active.value) return
+  typingCooldown = true
+  setTimeout(() => { typingCooldown = false }, 2000)
+  try {
+    await api.post(`/api/channels/${active.value.id}/typing`)
+  } catch (error) {
+    console.error('Typing notify failed:', error)
   }
 }
 
