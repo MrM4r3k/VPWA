@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import { DateTime } from 'luxon'
 import Channel from '#models/channel'
 import ChannelMember from '#models/channel_member'
 import ChannelBan from '#models/channel_ban'
@@ -63,11 +64,11 @@ export default class MessagesController {
       createdAt: m.createdAt?.toISO(),
       author: m.author
         ? {
-            id: String(m.author.id),
-            name: m.author.name,
-            surname: m.author.surname,
-            nickName: m.author.nickName,
-          }
+          id: String(m.author.id),
+          name: m.author.name,
+          surname: m.author.surname,
+          nickName: m.author.nickName,
+        }
         : null,
       mentionUserId: m.mentionUserId ? String(m.mentionUserId) : null,
       isMentionForMe: m.mentionUserId === user.id,
@@ -140,6 +141,10 @@ export default class MessagesController {
     })
 
     await message.load('author')
+
+    // Aktualizuj last_message_at v kanáli
+    channel.lastMessageAt = DateTime.now()
+    await channel.save()
 
     // Broadcast to websocket subscribers
     realtimeBus.emit('message:new', {

@@ -424,7 +424,10 @@ export default class ChannelsController {
       // Broadcast refresh to banned user
       realtimeBus.emit('channel:refresh', { userId: targetUser.id })
 
-      return { message: 'Member permanently banned by owner' }
+      return {
+        message: 'Member permanently banned by owner',
+        permanent: true
+      }
     }
 
     // Vo verejnom kanáli - iba zaznamenaj kick, nič nevyhadzuj
@@ -467,7 +470,10 @@ export default class ChannelsController {
       // Broadcast refresh to banned user
       realtimeBus.emit('channel:refresh', { userId: targetUser.id })
 
-      return { message: `Member permanently banned (${uniqueKickerCount} votes from different members)` }
+      return {
+        message: `Member permanently banned (${uniqueKickerCount} votes from different members)`,
+        permanent: true
+      }
     }
 
     // Kick bol zaznamenaný, ale používateľ zostáva v kanáli
@@ -613,6 +619,15 @@ export default class ChannelsController {
       // Owner can unban by inviting
       if (channel.ownerId === user.id) {
         await ban.delete()
+
+        // NOVÉ: Vymazať všetky kick záznamy pre tohto používateľa v tomto kanáli
+        await db
+          .from('channel_kicks')
+          .where('channel_id', channelId)
+          .where('kicked_user_id', targetUser.id)
+          .delete()
+
+        console.log(`[ChannelsController] Invite: Cleared all kick records for user ${targetUser.id} in channel ${channelId}`)
       } else {
         return response.status(403).json({ message: 'User is banned from this channel' })
       }
