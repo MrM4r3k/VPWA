@@ -182,6 +182,11 @@ async function onSubmit() {
     // Uložiť token
     localStorage.setItem('auth_token', data.token.token);
     localStorage.setItem('auth.loggedIn', 'true');
+    
+    // NOVÉ: Uložiť currentUserId
+    if (data.user?.id) {
+      localStorage.setItem('currentUserId', String(data.user.id));
+    }
 
     q.notify({
       type: 'positive',

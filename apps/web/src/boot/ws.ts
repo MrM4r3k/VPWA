@@ -1,6 +1,6 @@
 import { boot } from 'quasar/wrappers'
 import { Notify } from 'quasar'
-import { useMessageStore } from 'src/stores/message-store'
+import { useMessageStore, type Message } from 'src/stores/message-store'
 import { useTypingStore } from 'src/stores/typing-store'
 import { useChannelStore } from 'src/stores/channel-store'
 import { useNotificationStore } from 'src/stores/notification-store'
@@ -15,6 +15,23 @@ export default boot(() => {
   const notifications = useNotificationStore()
 
   let ws: WebSocket | null = null
+
+  // Helper funkcia pre kontrolu, či zobraziť notifikáciu
+  function shouldShowNotification(message: Message, currentUserId: string | null): boolean {
+    // Načítať preferenciu
+    const pref = Number(localStorage.getItem('notificationPreference') || '0')
+
+    // 0 = všetko, 1 = iba mentions, 2 = muted
+    if (pref === 2) return false // Muted
+
+    if (pref === 1) {
+      // Iba mentions - skontrolovať či je message.mentionUserId === currentUserId
+      if (!currentUserId || !message.mentionUserId) return false
+      return String(message.mentionUserId) === currentUserId
+    }
+
+    return true // Všetko
+  }
 
   function connect() {
     console.log('[WS] Attempting to connect to:', WS_URL)
@@ -94,7 +111,10 @@ export default boot(() => {
             const isActiveChannel = activeChannelId === messageChannelId
 
             // Zobraziť notifikáciu iba ak: app nie je visible ALEBO kanál správy nie je aktívny
-            const shouldNotify = isAppHidden || !isActiveChannel
+            const shouldNotifyByVisibility = isAppHidden || !isActiveChannel
+
+            // NOVÉ: Skontrolovať preferenciu notifikácií (všetko/iba mentions/muted)
+            const shouldNotifyByPreference = shouldShowNotification(m, currentUserId)
 
             console.log('[WS] Notification check:', {
               documentHidden: document.hidden,
@@ -103,10 +123,14 @@ export default boot(() => {
               messageChannelId,
               activeChannelId,
               isActiveChannel,
-              shouldNotify
+              shouldNotifyByVisibility,
+              shouldNotifyByPreference,
+              mentionUserId: m.mentionUserId,
+              currentUserId: currentUserId,
+              preference: Number(localStorage.getItem('notificationPreference') || '0')
             })
 
-            if (shouldNotify) {
+            if (shouldNotifyByVisibility && shouldNotifyByPreference) {
               const authorName = m.author?.nickName || m.author?.name || 'Unknown'
               const messageText = m.text || ''
               const truncatedText = messageText.length > 50

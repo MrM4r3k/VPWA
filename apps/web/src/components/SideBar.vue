@@ -26,6 +26,18 @@
             class="hover-scale"
             style="background: rgba(74, 78, 132, 0.25)"
           />
+          <!--Notifikácie-->
+          <q-btn 
+            flat 
+            round 
+            size="sm" 
+            :color="notificationIconColor" 
+            :icon="notificationIcon" 
+            @click="toggleNotification"
+            class="hover-scale"
+            style="background: rgba(74, 78, 132, 0.25)"
+            :title="notificationTooltip"
+          />
           <!--Stav-->
           <q-btn flat round size="sm" color="white" icon="person" style="background: rgba(74, 78, 132, 0.25)">
             <q-menu 
@@ -152,10 +164,38 @@
   const store = useChannelStore();
   const notifications = useNotificationStore();
   const search = ref('');
+  
+  // Notification preference state (0 = all, 1 = mentions only, 2 = muted)
+  const notificationState = ref(0);
 
   // Inject mobile and panel controls (must be at top level of setup)
   const isMobile = inject<Ref<boolean>>('isMobile')
   const setActivePanel = inject<((p: 'left'|'chat') => void)>('setActivePanel')
+  
+  // Notification preference functions
+  function toggleNotification() {
+    notificationState.value = (notificationState.value + 1) % 3
+    // NOVÉ: Uložiť do localStorage
+    localStorage.setItem('notificationPreference', String(notificationState.value))
+  }
+  
+  // Computed properties for notification icon and tooltip
+  const notificationIcon = computed(() => {
+    if (notificationState.value === 0) return 'notifications'
+    if (notificationState.value === 1) return 'notifications_active'
+    return 'notifications_off'
+  })
+  
+  const notificationIconColor = computed(() => {
+    if (notificationState.value === 2) return 'grey'
+    return 'white'
+  })
+  
+  const notificationTooltip = computed(() => {
+    if (notificationState.value === 0) return 'All notifications'
+    if (notificationState.value === 1) return 'Mentions only'
+    return 'Notifications muted'
+  })
   
   // App Visibility API - track when app is visible/hidden
   function handleVisibilityChange() {
@@ -163,6 +203,12 @@
   }
   
   onMounted(() => {
+    // NOVÉ: Načítať preferenciu notifikácií
+    const saved = localStorage.getItem('notificationPreference')
+    if (saved) {
+      notificationState.value = Number(saved)
+    }
+    
     // Request notification permission
     void notifications.requestPermission()
     
