@@ -371,6 +371,12 @@
       
       // Načítať všetkých používateľov
       await membersStore.fetchAll()
+      
+      // Inicializovať lastKnownStatus pri prvom načítaní
+      const currentUser = membersStore.getById(userId)
+      if (currentUser?.status) {
+        localStorage.setItem('lastKnownStatus', currentUser.status)
+      }
     } catch (error) {
       console.error('Failed to load user status', error)
     }

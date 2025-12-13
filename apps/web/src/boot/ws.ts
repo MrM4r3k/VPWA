@@ -34,8 +34,9 @@ export default boot(() => {
     // NOVÉ: Skontrolovať status používateľa
     if (currentUserId) {
       const currentUser = membersStore.getById(currentUserId)
-      if (currentUser?.status === 'DND') return false // DND blokuje notifikácie
-      if (currentUser?.status === 'offline') return false // Offline blokuje notifikácie
+      // DND a offline blokujú notifikácie (ale NIE správy!)
+      if (currentUser?.status === 'DND') return false
+      if (currentUser?.status === 'offline') return false
     }
 
     if (pref === 1) {
@@ -111,17 +112,17 @@ export default boot(() => {
               console.log('[WS] This is a mention for current user!')
             }
 
-            // NOVÉ: Skontrolovať status používateľa
+            // Skontrolovať status používateľa
             const currentUser = membersStore.getById(currentUserId)
 
+            // OPRAVENÉ: Ak je offline, ulož do queue ALE správu NEPRIDÁVAJ do store teraz
             if (currentUser?.status === 'offline') {
-              // Uložiť do queue namiesto zobrazenia
               offlineMessageQueue.push(m)
               console.log('[WS] User is offline, message queued')
-              return
+              return // Správa sa NEPRIDÁ do store, čaká v queue
             }
 
-            // Append message to store
+            // OPRAVENÉ: Správa sa VŽDY pridá do store (aj pri DND!)
             messages.appendFromRealtime(m.channelId, m)
 
             // Don't notify if message is from current user
@@ -130,20 +131,21 @@ export default boot(() => {
               return
             }
 
-            // NOVÉ: Notifikácia iba ak app nie je visible ALEBO ak nie je otvorený kanál správy
+            // Notifikácia iba ak app nie je visible ALEBO ak nie je otvorený kanál správy
             const isAppHidden = document.hidden || document.visibilityState === 'hidden'
             const activeChannelId = channels.activeChannelId
             const messageChannelId = String(m.channelId)
             const isActiveChannel = activeChannelId === messageChannelId
 
-            // NOVÉ: Skontrolovať, či kanál má pending invitation
+            // Skontrolovať, či kanál má pending invitation
             const messageChannel = channels.channels.find(c => c.id === messageChannelId)
             const hasPendingInvitation = messageChannel?.isInvited === true
 
             // Zobraziť notifikáciu iba ak: app nie je visible ALEBO kanál správy nie je aktívny
             const shouldNotifyByVisibility = isAppHidden || !isActiveChannel
 
-            // NOVÉ: Skontrolovať preferenciu notifikácií (všetko/iba mentions/muted)
+            // Skontrolovať preferenciu notifikácií (všetko/iba mentions/muted)
+            // DÔLEŽITÉ: shouldShowNotification už kontroluje DND status!
             const shouldNotifyByPreference = shouldShowNotification(m, currentUserId)
 
             console.log('[WS] Notification check:', {
@@ -156,12 +158,13 @@ export default boot(() => {
               hasPendingInvitation,
               shouldNotifyByVisibility,
               shouldNotifyByPreference,
+              userStatus: currentUser?.status,
               mentionUserId: m.mentionUserId,
               currentUserId: currentUserId,
               preference: Number(localStorage.getItem('notificationPreference') || '0')
             })
 
-            // NOVÉ: Nezobrazovať notifikáciu ak má kanál pending invitation
+            // Nezobraziť notifikáciu ak má kanál pending invitation
             if (hasPendingInvitation) {
               console.log('[WS] ⏭️ Skipping notification - channel has pending invitation')
               return
@@ -227,7 +230,7 @@ export default boot(() => {
                 })()
               }
             } else {
-              console.log('[WS] ⏭️ Skipping notification - app is visible and user is on active channel')
+              console.log('[WS] ⏭️ Skipping notification - conditions not met')
             }
           })()
         }
@@ -299,7 +302,7 @@ export default boot(() => {
     }
   })
 
-  // NOVÉ: Watch pre zmeny statusu používateľa cez membersStore
+  // Watch pre zmeny statusu používateľa cez membersStore
   membersStore.$subscribe((_mutation, state) => {
     const currentUserId = localStorage.getItem('currentUserId')
     if (!currentUserId) return
@@ -307,14 +310,15 @@ export default boot(() => {
     const user = state.byId[currentUserId]
     if (!user) return
 
-    // Toto sa volá pri každej zmene v store, takže musíme sledovať zmeny statusu
-    // Použijeme jednoduchší prístup - pri každej zmene skontrolujeme, či sa status zmenil z offline na online
-    const wasOffline = localStorage.getItem('lastKnownStatus') === 'offline'
-    const isNowOnline = user.status === 'online'
+    // Sledovať zmeny statusu
+    const lastStatus = localStorage.getItem('lastKnownStatus')
+    const currentStatus = user.status
 
-    if (wasOffline && isNowOnline) {
+    // OPRAVENÉ: Spracovať queue pri každom prechode z offline na čokoľvek iné
+    // offline -> online ALEBO offline -> DND
+    if (lastStatus === 'offline' && currentStatus !== 'offline') {
       // Spracovať queue
-      console.log('[WS] User went online, processing queued messages:', offlineMessageQueue.length)
+      console.log('[WS] User is no longer offline, processing queued messages:', offlineMessageQueue.length)
       offlineMessageQueue.forEach((m) => {
         messages.appendFromRealtime(m.channelId, m)
       })
@@ -325,9 +329,8 @@ export default boot(() => {
     }
 
     // Uložiť aktuálny status
-    localStorage.setItem('lastKnownStatus', user.status)
+    localStorage.setItem('lastKnownStatus', currentStatus)
   })
 
   return
 })
-

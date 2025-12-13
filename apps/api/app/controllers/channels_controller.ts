@@ -233,14 +233,14 @@ export default class ChannelsController {
         .where('channel_id', channelId)
         .select('user_id')
       const memberIds = allMembers.map(m => m.userId)
-      
+
       await channel.delete()
-      
+
       // Broadcast refresh to all former members
       for (const memberId of memberIds) {
         realtimeBus.emit('channel:refresh', { userId: memberId })
       }
-      
+
       return { message: 'Channel deleted because the owner left' }
     }
 
@@ -329,9 +329,12 @@ export default class ChannelsController {
 
   /**
    * Kick member from channel. Command: /kick <nick>
-   * - V public kanálech: jakýkoliv člen může kickovat
-   * - Po 3 kickech od různých členů = trvalý ban
-   * - Owner může kickovat "natrvalo" kdykoliv
+   * - V súkromných kanáloch: iba owner môže kickovať
+   * - Vo verejných kanáloch: 
+   *   - Akýkoľvek člen môže "hlasovať" za kick
+   *   - Po 3 kickoch od rôznych členov = trvalý ban a odstránenie
+   *   - Owner môže kickovať "natrvalo" kedykoľvek (okamžitý ban)
+   * - Owner nemôže byť kicknutý
    */
   async kick({ params, auth, request, response }: HttpContext) {
     const user = await auth.getUserOrFail()
@@ -358,6 +361,11 @@ export default class ChannelsController {
       return response.status(400).json({ message: 'You cannot kick yourself' })
     }
 
+    // NOVÉ: Zakázať kicknutie ownera
+    if (targetUser.id === channel.ownerId) {
+      return response.status(403).json({ message: 'Cannot kick the channel owner' })
+    }
+
     // Check if user is a member of the channel
     const userMembership = await ChannelMember.query()
       .where('channel_id', channelId)
@@ -380,22 +388,22 @@ export default class ChannelsController {
 
     const isOwner = channel.ownerId === user.id
 
-    // Check if target is banned
+    // Check if target is already banned
     const existingBan = await ChannelBan.query()
       .where('channel_id', channelId)
       .where('user_id', targetUser.id)
       .first()
 
-    if (existingBan && !isOwner) {
+    if (existingBan) {
       return response.status(400).json({ message: 'User is already banned from this channel' })
     }
 
-    // In private channels, only owner can kick
+    // V súkromných kanáloch môže kickovať iba owner
     if (channel.isPrivate && !isOwner) {
       return response.status(403).json({ message: 'Only owner can kick members in private channels' })
     }
 
-    // If owner kicks, it's permanent ban (owner can kick anytime, even if already banned)
+    // Ak kickuje owner, je to okamžitý permanent ban
     if (isOwner) {
       // Track the kick
       await ChannelKick.create({
@@ -403,35 +411,42 @@ export default class ChannelsController {
         kickedUserId: targetUser.id,
         kickedByUserId: user.id,
       })
-      
+
       // Remove membership
       await targetMembership.delete()
-      
-      // Create permanent ban if not already banned
-      if (!existingBan) {
-        await ChannelBan.create({
-          channelId,
-          userId: targetUser.id,
-        })
-      }
-      return { message: 'Member permanently banned' }
+
+      // Create permanent ban
+      await ChannelBan.create({
+        channelId,
+        userId: targetUser.id,
+      })
+
+      // Broadcast refresh to banned user
+      realtimeBus.emit('channel:refresh', { userId: targetUser.id })
+
+      return { message: 'Member permanently banned by owner' }
     }
 
-    // In public channels, any member can kick
-    // But first check if user is already banned (non-owners can't kick banned users)
-    if (existingBan) {
-      return response.status(400).json({ message: 'User is already banned from this channel' })
+    // Vo verejnom kanáli - iba zaznamenaj kick, nič nevyhadzuj
+    // Najprv skontroluj, či tento user už nehlasoval za kick tohto targetu
+    const existingKickByThisUser = await ChannelKick.query()
+      .where('channel_id', channelId)
+      .where('kicked_user_id', targetUser.id)
+      .where('kicked_by_user_id', user.id)
+      .first()
+
+    if (existingKickByThisUser) {
+      return response.status(400).json({ message: 'You have already voted to kick this user' })
     }
 
-    // Track the kick
+    // Zaznamenaj kick (hlasovanie)
     await ChannelKick.create({
       channelId,
       kickedUserId: targetUser.id,
       kickedByUserId: user.id,
     })
 
-    // In public channels, check if 3 different members have kicked this user
-    // Get unique kickers (distinct kicked_by_user_id) - including the current kick
+    // Zisti počet unikátnych hlasov (kickov) pre tohto používateľa
     const uniqueKickersResult = await db
       .from('channel_kicks')
       .where('channel_id', channelId)
@@ -442,26 +457,21 @@ export default class ChannelsController {
     const uniqueKickerCount = uniqueKickersResult.length
 
     if (uniqueKickerCount >= 3) {
-      // Permanent ban after 3 different members kick
+      // Po 3 hlasoch od rôznych členov = permanent ban a odstránenie
       await targetMembership.delete()
       await ChannelBan.create({
         channelId,
         userId: targetUser.id,
       })
-      
+
       // Broadcast refresh to banned user
       realtimeBus.emit('channel:refresh', { userId: targetUser.id })
-      
-      return { message: 'Member permanently banned (3 kicks from different members)' }
+
+      return { message: `Member permanently banned (${uniqueKickerCount} votes from different members)` }
     }
 
-      // Just remove membership (temporary kick)
-      await targetMembership.delete()
-      
-      // Broadcast refresh to kicked user
-      realtimeBus.emit('channel:refresh', { userId: targetUser.id })
-      
-      return { message: 'Member removed' }
+    // Kick bol zaznamenaný, ale používateľ zostáva v kanáli
+    return { message: `Kick vote recorded (${uniqueKickerCount}/3 votes)` }
   }
 
   /**

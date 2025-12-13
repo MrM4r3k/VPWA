@@ -1,5 +1,5 @@
 <template>
-  <div class="message-list-wrapper" :class="{ 'has-pending-invite': hasPendingInvite }">
+  <div class="message-list-wrapper" :class="{ 'has-pending-invite': hasPendingInvite, 'is-offline': isOffline }">
     <q-infinite-scroll
       class="messages"
       reverse
@@ -39,6 +39,15 @@
         <p class="invite-blur-subtext">Accept or decline the invitation to view messages</p>
       </div>
     </div>
+    
+    <!-- NOVÉ: Offline overlay -->
+    <div v-if="isOffline" class="offline-overlay">
+      <div class="offline-message">
+        <q-icon name="cloud_off" size="48px" color="grey-6" />
+        <p class="offline-text">You are offline</p>
+        <p class="offline-subtext">Switch to Online or DND to see messages</p>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -47,11 +56,13 @@ import { computed, watch, ref, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useChannelStore } from 'src/stores/channel-store'
 import { useMessageStore, type Message } from 'src/stores/message-store'
 import { useTypingStore } from 'src/stores/typing-store'
+import { useMembersStore } from 'src/stores/members-store'
 import { date } from 'quasar'
 
 const channels = useChannelStore()
 const messages = useMessageStore()
 const typing = useTypingStore()
+const membersStore = useMembersStore()
 
 // scroll target passed from parent (IndexPage -> q-scroll-area)
 const { scrollTarget } = defineProps<{ scrollTarget?: string | Element | undefined }>()
@@ -87,6 +98,15 @@ const hasPendingInvite = computed(() => channels.activeChannel?.isInvited === tr
 
 const activeChannelId = computed(() => channels.activeChannelId)
 
+// NOVÉ: Kontrola offline statusu
+const isOffline = computed(() => {
+  const currentUserId = localStorage.getItem('currentUserId')
+  if (!currentUserId) return false
+  
+  const currentUser = membersStore.getById(currentUserId)
+  return currentUser?.status === 'offline'
+})
+
 // Track previous message count to detect new messages
 const previousMessageCount = ref(0)
 const shouldAutoScroll = ref(true) // Start with auto-scroll enabled
@@ -102,7 +122,17 @@ watch(activeChannelId, async (id) => {
   scrollToBottom()
 }, { immediate: true })
 
-const visibleMessages = computed(() => messages.listByChannel(activeChannelId.value))
+// NOVÉ: Filter správ podľa offline statusu
+const allMessages = computed(() => messages.listByChannel(activeChannelId.value))
+
+const visibleMessages = computed(() => {
+  // Ak je používateľ offline, nevráť žiadne správy
+  if (isOffline.value) {
+    return []
+  }
+  
+  return allMessages.value
+})
 
 // Watch for new messages and auto-scroll if near bottom
 watch(visibleMessages, async (newMessages, oldMessages) => {
@@ -276,6 +306,48 @@ function formatTime(iso?: string): string {
   opacity: 0.3;
 }
 
+/* NOVÉ: Offline overlay styles */
+.message-list-wrapper.is-offline .messages {
+  filter: blur(8px);
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.2;
+}
+
+.offline-overlay {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.offline-message {
+  text-align: center;
+  padding: 32px;
+  background: rgba(11, 13, 16, 0.95);
+  border: 1px solid rgba(156, 163, 175, 0.3);
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  max-width: 400px;
+}
+
+.offline-text {
+  color: #9ca3af;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 16px 0 8px 0;
+}
+
+.offline-subtext {
+  color: #6b7280;
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.5;
+}
+
 .invite-blur-overlay {
   position: fixed;
   top: 50%;
@@ -312,33 +384,39 @@ function formatTime(iso?: string): string {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .invite-blur-message {
+  .invite-blur-message,
+  .offline-message {
     padding: 24px;
     max-width: 90%;
     margin: 0 16px;
   }
 
-  .invite-blur-text {
+  .invite-blur-text,
+  .offline-text {
     font-size: 16px;
   }
 
-  .invite-blur-subtext {
+  .invite-blur-subtext,
+  .offline-subtext {
     font-size: 13px;
   }
 }
 
 @media (max-width: 480px) {
-  .invite-blur-message {
+  .invite-blur-message,
+  .offline-message {
     padding: 20px;
     max-width: 85%;
   }
 
-  .invite-blur-text {
+  .invite-blur-text,
+  .offline-text {
     font-size: 15px;
     margin: 12px 0 6px 0;
   }
 
-  .invite-blur-subtext {
+  .invite-blur-subtext,
+  .offline-subtext {
     font-size: 12px;
   }
 }
