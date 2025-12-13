@@ -96,14 +96,22 @@ export const useMessageStore = defineStore('messages', {
       const entry = this.byChannel[channelId]!
       const res = await api.post(`/api/channels/${channelId}/messages`, { text })
       const message = res.data.message as Message
-      entry.items = [...entry.items, message]
+      // Check if message already exists (from WebSocket) before adding
+      const exists = entry.items.some(m => m.id === message.id)
+      if (!exists) {
+        entry.items = [...entry.items, message]
+      }
       return message
     },
 
     appendFromRealtime(channelId: string, message: Message) {
       this.ensure(channelId)
       const entry = this.byChannel[channelId]!
-      entry.items = [...entry.items, message]
+      // Check if message already exists (avoid duplicates from send + WebSocket)
+      const exists = entry.items.some(m => m.id === message.id)
+      if (!exists) {
+        entry.items = [...entry.items, message]
+      }
     },
   },
 })

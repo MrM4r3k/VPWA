@@ -19,7 +19,7 @@
             class="center-messages fit"
             :class="{ 'center-messages--typing': hasTypingActivity }"
           >
-            <MessageList :scroll-target="saContainer" />
+            <MessageList ref="messageListRef" :scroll-target="saContainer" />
           </q-scroll-area>
 
           <!-- Typing Indicator (design only) -->

@@ -9,7 +9,7 @@
             {{ active.channelName }}
           </div>
           <div style="font-size:14px; color:#9ca3af; margin-top:2px; ">
-            {{ members.length }} members • {{ active.isPrivate ? 'Private' : 'Public' }}
+            {{ active.memberIds?.length || 0 }} members • {{ active.isPrivate ? 'Private' : 'Public' }}
           </div>
         </q-toolbar-title>
         
@@ -67,7 +67,6 @@
   import { useQuasar } from 'quasar'
   
   const channels = useChannelStore()
-  const members = computed(() => channels.activeMembers)
   const route = useRoute()
   const router = useRouter()
   const $q = useQuasar()
@@ -190,7 +189,7 @@
 .chat-header {
   position: fixed;
   top: 0;
-  left: 320px; /* Account for left sidebar width */
+  left: var(--left, 320px); /* Account for left sidebar width */
   right: 0; /* No right sidebar */
   z-index: 3;
   background: rgba(11, 13, 16, 0.95);
@@ -199,6 +198,7 @@
   height: 64px;
   display: flex;
   padding: 0 16px;
+  transition: left 0.3s ease;
 }
 
 .header-inner {

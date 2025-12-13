@@ -15,21 +15,6 @@
 
         <!-- Akčné ikony -->
         <div class="row items-center q-gutter-xs">
-          <!-- Notification Switch -->
-          <q-btn
-            flat
-            round
-            size="sm"
-            :color="notificationColor"
-            :icon="notificationIcon"
-            @click="toggleNotification"
-            class="hover-scale"
-            :style="notificationStyle"
-          >
-            <q-tooltip class="bg-grey-8 text-white" :offset="[0, 8]">
-              {{ notificationTooltip }}
-            </q-tooltip>
-          </q-btn>
           <!--Vytvorenie novej skupiny-->
           <q-btn
             flat
@@ -156,58 +141,47 @@
 </template>
   
   <script setup lang="ts">
-  import { computed, ref, inject, type Ref, onMounted } from 'vue';
+  import { computed, ref, inject, type Ref, onMounted, onUnmounted } from 'vue';
   import { useChannelStore } from '../stores/channel-store';
+  import { useNotificationStore } from '../stores/notification-store';
   import { useRouter } from 'vue-router';
   
   defineOptions({ name: 'SideBar' });
   
   const router = useRouter();
   const store = useChannelStore();
+  const notifications = useNotificationStore();
   const search = ref('');
-  
+
   // Inject mobile and panel controls (must be at top level of setup)
   const isMobile = inject<Ref<boolean>>('isMobile')
   const setActivePanel = inject<((p: 'left'|'chat') => void)>('setActivePanel')
   
-  // Notification switch state
-  const notificationState = ref(0); // 0: normal, 1: mentions only, 2: muted
-  
-  const notificationIcon = computed(() => {
-    switch (notificationState.value) {
-      case 0: return 'notifications'; // Normal notifications
-      case 1: return 'notifications_active'; // Mentions only
-      case 2: return 'notifications_off'; // Muted
-      default: return 'notifications';
-    }
-  });
-  
-  const notificationTooltip = computed(() => {
-    switch (notificationState.value) {
-      case 0: return 'All notifications';
-      case 1: return 'Mentions only';
-      case 2: return 'Notifications muted';
-      default: return 'All notifications';
-    }
-  });
-  
-  const notificationColor = computed(() => {
-    switch (notificationState.value) {
-      case 0: return 'primary'; // Normal notifications - app primary color
-      case 1: return 'warning'; // Mentions only - warning accent
-      case 2: return 'red'; // Muted - danger
-      default: return 'primary';
-    }
-  });
-  
-  const notificationStyle = computed(() => {
-    return 'background: rgba(74, 78, 132, 0.25)';
-  });
-  
-  //Mení stav notifikácie medzi 3 možnosťami
-  function toggleNotification() {
-    notificationState.value = (notificationState.value + 1) % 3;
+  // App Visibility API - track when app is visible/hidden
+  function handleVisibilityChange() {
+    notifications.setAppVisible(!document.hidden)
   }
+  
+  onMounted(() => {
+    // Request notification permission
+    void notifications.requestPermission()
+    
+    // Set initial visibility state
+    notifications.setAppVisible(!document.hidden)
+    
+    // Listen for visibility changes
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    // Also listen for focus/blur (for better cross-browser support)
+    window.addEventListener('focus', () => notifications.setAppVisible(true))
+    window.addEventListener('blur', () => notifications.setAppVisible(false))
+  })
+  
+  onUnmounted(() => {
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
+    window.removeEventListener('focus', () => notifications.setAppVisible(true))
+    window.removeEventListener('blur', () => notifications.setAppVisible(false))
+  })
 
   //Filtrovanie - pozvánka do kanála je prvá
   const filtered = computed(() => {

@@ -16,7 +16,7 @@
         v-for="msg in visibleMessages"
         :key="msg.id"
         class="message-row"
-        :class="{ 'is-mention': isMentionForMe(msg.text) }"
+        :class="{ 'is-mention': isMentionForMe(msg) }"
       >
         <div class="avatar">{{ getInitials(msg.author?.name ?? '?') }}</div>
         <div class="bubble">
@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, watch, ref, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useChannelStore } from 'src/stores/channel-store'
 import { useMessageStore, type Message } from 'src/stores/message-store'
 import { useTypingStore } from 'src/stores/typing-store'
@@ -56,18 +56,99 @@ const typing = useTypingStore()
 // scroll target passed from parent (IndexPage -> q-scroll-area)
 const { scrollTarget } = defineProps<{ scrollTarget?: string | Element | undefined }>()
 
+// Expose scroll functions to parent
+const scrollToBottom = () => {
+  if (!scrollTarget || typeof scrollTarget === 'string') return
+  const el = scrollTarget
+  if (!el) return
+  
+  // Use requestAnimationFrame for smooth scroll
+  requestAnimationFrame(() => {
+    el.scrollTop = el.scrollHeight
+  })
+}
+
+const isNearBottom = (threshold = 150): boolean => {
+  if (!scrollTarget || typeof scrollTarget === 'string') return true
+  const el = scrollTarget
+  if (!el) return true
+  const { scrollTop, scrollHeight, clientHeight } = el
+  const distanceFromBottom = scrollHeight - scrollTop - clientHeight
+  return distanceFromBottom < threshold
+}
+
+defineExpose({
+  scrollToBottom,
+  isNearBottom,
+})
+
 // Current authenticated user is loaded elsewhere; we just read member nicknames for display
 const hasPendingInvite = computed(() => channels.activeChannel?.isInvited === true)
 
 const activeChannelId = computed(() => channels.activeChannelId)
 
+// Track previous message count to detect new messages
+const previousMessageCount = ref(0)
+const shouldAutoScroll = ref(true) // Start with auto-scroll enabled
+
 // load messages when channel changes
 watch(activeChannelId, async (id) => {
   if (!id) return
   await messages.fetchInitial(id)
+  previousMessageCount.value = 0
+  shouldAutoScroll.value = true
+  // Scroll to bottom after loading initial messages
+  await nextTick()
+  scrollToBottom()
 }, { immediate: true })
 
 const visibleMessages = computed(() => messages.listByChannel(activeChannelId.value))
+
+// Watch for new messages and auto-scroll if near bottom
+watch(visibleMessages, async (newMessages, oldMessages) => {
+  const newCount = newMessages.length
+  const oldCount = oldMessages?.length || 0
+  
+  // If new message was added
+  if (newCount > oldCount) {
+    // Check if user is near bottom (within 100px)
+    if (shouldAutoScroll.value || isNearBottom(100)) {
+      await nextTick()
+      scrollToBottom()
+      shouldAutoScroll.value = true
+    }
+  }
+}, { deep: true })
+
+// Track scroll position to detect manual scrolling
+let scrollHandler: (() => void) | null = null
+
+onMounted(() => {
+  if (!scrollTarget || typeof scrollTarget === 'string') return
+  const el = scrollTarget
+  if (!el) return
+  
+  scrollHandler = () => {
+    // If user scrolls up, disable auto-scroll
+    if (!isNearBottom(150)) {
+      shouldAutoScroll.value = false
+    } else {
+      // If user scrolls back to bottom, re-enable auto-scroll
+      shouldAutoScroll.value = true
+    }
+  }
+  
+  el.addEventListener('scroll', scrollHandler)
+})
+
+onBeforeUnmount(() => {
+  if (scrollHandler && scrollTarget && typeof scrollTarget !== 'string') {
+    const el = scrollTarget
+    if (el) {
+      el.removeEventListener('scroll', scrollHandler)
+    }
+  }
+})
 
 const hasTyping = computed(() => {
   const cid = activeChannelId.value
