@@ -11,9 +11,14 @@ type TypingPayload = {
   nickName: string
 }
 
+type ChannelRefreshPayload = {
+  userId: number
+}
+
 type EventMap = {
   'message:new': MessageNewPayload
   'typing': TypingPayload
+  'channel:refresh': ChannelRefreshPayload
 }
 
 class RealtimeBus extends EventEmitter {

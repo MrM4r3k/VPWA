@@ -124,8 +124,8 @@
         <!-- Channels List -->
         <div class="channel-list">
           <div
-            v-for="c in filtered"
-            :key="c.id"
+            v-for="(c, index) in filtered"
+            :key="`channel-${c.id}-${index}`"
             @click="open(c.id)"
             :class="['channel-item', store.activeChannelId === c.id ? 'channel-item--active' : '']"
           >
@@ -165,6 +165,10 @@
   const router = useRouter();
   const store = useChannelStore();
   const search = ref('');
+  
+  // Inject mobile and panel controls (must be at top level of setup)
+  const isMobile = inject<Ref<boolean>>('isMobile')
+  const setActivePanel = inject<((p: 'left'|'chat') => void)>('setActivePanel')
   
   // Notification switch state
   const notificationState = ref(0); // 0: normal, 1: mentions only, 2: muted
@@ -230,8 +234,6 @@
   function open(id: string) {
     // prejdi na chat route: /app/c/:channelId
     void router.push({ name: 'chat', params: { channelId: id } });
-    const isMobile = inject<Ref<boolean>>('isMobile')
-    const setActivePanel = inject<((p: 'left'|'chat') => void)>('setActivePanel')
     if (isMobile?.value && setActivePanel) setActivePanel('chat')
   }
   

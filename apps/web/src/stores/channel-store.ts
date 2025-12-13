@@ -34,9 +34,15 @@ export const useChannelStore = defineStore('channels', {
     openChannel(id: string) { this.activeChannelId = id }, //Zmena aktívneho kanála
 
     async fetchChannels() {
-      const response = await api.get('/api/channels')
-      // API returns { channels: [...] }
-      this.channels = response.data.channels as Channel[]
+      try {
+        console.log('[ChannelStore] Fetching channels...')
+        const response = await api.get('/api/channels')
+        // API returns { channels: [...] }
+        this.channels = response.data.channels as Channel[]
+        console.log(`[ChannelStore] Loaded ${this.channels.length} channels`)
+      } catch (err) {
+        console.error('[ChannelStore] Failed to fetch channels:', err)
+      }
     },
 
     setChannels(channels: Channel[]) {

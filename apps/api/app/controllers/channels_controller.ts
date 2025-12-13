@@ -5,6 +5,7 @@ import ChannelKick from '#models/channel_kick'
 import ChannelBan from '#models/channel_ban'
 import User from '#models/user'
 import db from '@adonisjs/lucid/services/db'
+import { realtimeBus } from '#services/realtime_bus'
 
 export default class ChannelsController {
   /**
@@ -136,6 +137,11 @@ export default class ChannelsController {
 
     await ChannelMember.createMany(membersToCreate)
 
+    // Broadcast refresh to all members
+    for (const memberId of memberIdSet) {
+      realtimeBus.emit('channel:refresh', { userId: memberId })
+    }
+
     return response.status(201).json({
       channel: {
         id: String(channel.id),
@@ -172,6 +178,9 @@ export default class ChannelsController {
     membership.invitationStatus = 'accepted'
     await membership.save()
 
+    // Broadcast refresh to user who accepted
+    realtimeBus.emit('channel:refresh', { userId: user.id })
+
     return { message: 'Invitation accepted' }
   }
 
@@ -197,6 +206,9 @@ export default class ChannelsController {
 
     await membership.delete()
 
+    // Broadcast refresh to user who rejected
+    realtimeBus.emit('channel:refresh', { userId: user.id })
+
     return { message: 'Invitation rejected' }
   }
 
@@ -216,7 +228,19 @@ export default class ChannelsController {
 
     if (channel.ownerId === user.id) {
       // Owner moze odist kedykolvek - kanal sa zmaze (cascade zrusi aj clenstva)
+      // Get all members before deletion
+      const allMembers = await ChannelMember.query()
+        .where('channel_id', channelId)
+        .select('user_id')
+      const memberIds = allMembers.map(m => m.userId)
+      
       await channel.delete()
+      
+      // Broadcast refresh to all former members
+      for (const memberId of memberIds) {
+        realtimeBus.emit('channel:refresh', { userId: memberId })
+      }
+      
       return { message: 'Channel deleted because the owner left' }
     }
 
@@ -230,6 +254,9 @@ export default class ChannelsController {
     }
 
     await membership.delete()
+
+    // Broadcast refresh to user who left
+    realtimeBus.emit('channel:refresh', { userId: user.id })
 
     return { message: 'Left channel' }
   }
@@ -421,12 +448,20 @@ export default class ChannelsController {
         channelId,
         userId: targetUser.id,
       })
+      
+      // Broadcast refresh to banned user
+      realtimeBus.emit('channel:refresh', { userId: targetUser.id })
+      
       return { message: 'Member permanently banned (3 kicks from different members)' }
     }
 
-    // Just remove membership (temporary kick)
-    await targetMembership.delete()
-    return { message: 'Member removed' }
+      // Just remove membership (temporary kick)
+      await targetMembership.delete()
+      
+      // Broadcast refresh to kicked user
+      realtimeBus.emit('channel:refresh', { userId: targetUser.id })
+      
+      return { message: 'Member removed' }
   }
 
   /**
@@ -480,6 +515,10 @@ export default class ChannelsController {
         unreadCount: 0,
       })
 
+      // Broadcast refresh to user who joined
+      console.log(`[ChannelsController] Join: Emitting channel:refresh for user ${user.id}`)
+      realtimeBus.emit('channel:refresh', { userId: user.id })
+
       return { message: 'Joined channel', channelId: String(channel.id) }
     } else {
       // Channel doesn't exist - create it
@@ -497,6 +536,9 @@ export default class ChannelsController {
         invitationStatus: 'accepted',
         unreadCount: 0,
       })
+
+      // Broadcast refresh to creator
+      realtimeBus.emit('channel:refresh', { userId: user.id })
 
       return response.status(201).json({
         message: 'Channel created',
@@ -588,6 +630,10 @@ export default class ChannelsController {
       unreadCount: 0,
     })
 
+    // Broadcast refresh to invited user
+    console.log(`[ChannelsController] Invite: Emitting channel:refresh for user ${targetUser.id}`)
+    realtimeBus.emit('channel:refresh', { userId: targetUser.id })
+
     return { message: 'Invitation sent' }
   }
 
@@ -639,6 +685,9 @@ export default class ChannelsController {
 
     await membership.delete()
 
+    // Broadcast refresh to revoked user
+    realtimeBus.emit('channel:refresh', { userId: targetUser.id })
+
     return { message: 'Member removed' }
   }
 
@@ -659,7 +708,18 @@ export default class ChannelsController {
       return response.status(403).json({ message: 'Only owner can quit (delete) channel' })
     }
 
+    // Get all members before deletion
+    const allMembers = await ChannelMember.query()
+      .where('channel_id', channelId)
+      .select('user_id')
+    const memberIds = allMembers.map(m => m.userId)
+
     await channel.delete()
+
+    // Broadcast refresh to all former members
+    for (const memberId of memberIds) {
+      realtimeBus.emit('channel:refresh', { userId: memberId })
+    }
 
     return { message: 'Channel deleted' }
   }

@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { BaseModel, belongsTo, column, BelongsTo } from '@adonisjs/lucid/orm'
+import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
 import Channel from '#models/channel'
 import User from '#models/user'
 
@@ -28,12 +28,12 @@ export default class Message extends BaseModel {
   declare updatedAt: DateTime | null
 
   @belongsTo(() => Channel)
-  declare channel: BelongsTo<typeof Channel>
+  declare channel: any
 
   @belongsTo(() => User, { foreignKey: 'authorId' })
-  declare author: BelongsTo<typeof User>
+  declare author: any
 
   @belongsTo(() => User, { foreignKey: 'mentionUserId' })
-  declare mentionUser: BelongsTo<typeof User>
+  declare mentionUser: any
 }
 
