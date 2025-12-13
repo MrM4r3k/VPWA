@@ -15,10 +15,16 @@ type ChannelRefreshPayload = {
   userId: number
 }
 
+type UserStatusChangedPayload = {
+  userId: number
+  status: 'online' | 'DND' | 'offline'
+}
+
 type EventMap = {
   'message:new': MessageNewPayload
   'typing': TypingPayload
   'channel:refresh': ChannelRefreshPayload
+  'user:status:changed': UserStatusChangedPayload
 }
 
 class RealtimeBus extends EventEmitter {

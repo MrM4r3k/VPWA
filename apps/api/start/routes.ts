@@ -64,6 +64,7 @@ router
 router
   .group(() => {
     router.get('/users', [UsersController, 'index'])
+    router.put('/users/me/status', [UsersController, 'updateStatus'])
   })
   .prefix('/api')
   .use(middleware.auth())

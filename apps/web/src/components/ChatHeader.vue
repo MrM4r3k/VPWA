@@ -134,11 +134,8 @@
     try {
       await api.post(`/api/channels/${active.value.id}/leave`)
       await channels.fetchChannels()
-      // Ak kanal zmizol zo zoznamu (napr. owner ho zrusil), presmeruj na /app
-      const stillThere = channels.channels.find(c => c.id === active.value.id)
-      if (!stillThere) {
-        await router.push('/app')
-      }
+      // Presmeruj na welcome page po opustení kanála
+      await router.push('/app')
       // Rozdielne notifikacie podla role
       if (isOwner.value) {
         $q.notify({ type: 'info', message: 'Group cancelled', position: 'top' })

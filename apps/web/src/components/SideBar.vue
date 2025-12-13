@@ -39,7 +39,7 @@
             :title="notificationTooltip"
           />
           <!--Stav-->
-          <q-btn flat round size="sm" color="white" icon="person" style="background: rgba(74, 78, 132, 0.25)">
+          <q-btn flat round size="sm" :color="statusIconColor" icon="circle" style="background: rgba(74, 78, 132, 0.25)" :title="statusTooltip">
             <q-menu 
             transition-show="rotate" 
             transition-hide="rotate" 
@@ -50,25 +50,47 @@
                   border-width: 1.5px; 
                   background: #252837">
 
-              <q-list style="min-width: 100px">
-                <q-item clickable v-ripple v-close-popup style="border-radius: 15px; color: #ffffff; margin: 5px">
-                      <q-item clickable v-close-popup @click="() => {}" style="border-radius: 20px;">
-                        <q-item-section>
-                          <q-item-label>Online</q-item-label>
-                        </q-item-section>
-                      </q-item>
+              <q-list style="min-width: 150px">
+                <q-item 
+                  clickable 
+                  v-close-popup 
+                  @click="setStatus('online')" 
+                  :class="{ 'status-active': currentStatus === 'online' }"
+                  style="border-radius: 8px; color: #ffffff; margin: 4px">
+                  <q-item-section avatar>
+                    <q-icon name="circle" color="green" size="12px" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>Online</q-item-label>
+                  </q-item-section>
+                </q-item>
 
-                      <q-item clickable v-close-popup @click="() => {}" style="border-radius: 20px;">
-                        <q-item-section>
-                          <q-item-label>Offline</q-item-label>
-                        </q-item-section>
-                      </q-item>
+                <q-item 
+                  clickable 
+                  v-close-popup 
+                  @click="setStatus('DND')" 
+                  :class="{ 'status-active': currentStatus === 'DND' }"
+                  style="border-radius: 8px; color: #ffffff; margin: 4px">
+                  <q-item-section avatar>
+                    <q-icon name="circle" color="red" size="12px" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>Do Not Disturb</q-item-label>
+                  </q-item-section>
+                </q-item>
 
-                      <q-item clickable v-close-popup @click="() => {}" style="border-radius: 20px;">
-                        <q-item-section>
-                          <q-item-label>Do not disturb</q-item-label>
-                        </q-item-section>
-                      </q-item>
+                <q-item 
+                  clickable 
+                  v-close-popup 
+                  @click="setStatus('offline')" 
+                  :class="{ 'status-active': currentStatus === 'offline' }"
+                  style="border-radius: 8px; color: #ffffff; margin: 4px">
+                  <q-item-section avatar>
+                    <q-icon name="circle" color="grey" size="12px" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>Offline</q-item-label>
+                  </q-item-section>
                 </q-item>
               </q-list>
             </q-menu>
@@ -113,8 +135,8 @@
         <div class="server-info">
           <div class="server-name">Loom Chat</div>
           <div class="server-status">
-            <q-icon name="fiber_manual_record" size="8px" color="green" />
-            <span>Online</span>
+            <q-icon name="fiber_manual_record" size="8px" :color="statusIconColor" />
+            <span>{{ statusText }}</span>
           </div>
         </div>
 
@@ -124,7 +146,7 @@
             v-for="(c, index) in filtered"
             :key="`channel-${c.id}-${index}`"
             @click="open(c.id)"
-            :class="['channel-item', store.activeChannelId === c.id ? 'channel-item--active' : '']"
+            :class="['channel-item', store.activeChannelId === c.id ? 'channel-item--active' : '', c.isInvited ? 'channel-invited' : '']"
           >
           <!-- Private / Public groups-->
             <div class="channel-icon">
@@ -156,17 +178,25 @@
   import { computed, ref, inject, type Ref, onMounted, onUnmounted } from 'vue';
   import { useChannelStore } from '../stores/channel-store';
   import { useNotificationStore } from '../stores/notification-store';
+  import { useMembersStore } from '../stores/members-store';
   import { useRouter } from 'vue-router';
+  import { api } from 'boot/axios';
+  import { useQuasar } from 'quasar';
   
   defineOptions({ name: 'SideBar' });
   
   const router = useRouter();
   const store = useChannelStore();
   const notifications = useNotificationStore();
+  const membersStore = useMembersStore();
+  const $q = useQuasar();
   const search = ref('');
   
-  // Notification preference state (0 = all, 1 = mentions only, 2 = muted)
+  // Notification preference state
   const notificationState = ref(0);
+  
+  // User status - použiť getter zo store (getters sú reaktívne)
+  const currentStatus = computed(() => membersStore.currentUserStatus)
 
   // Inject mobile and panel controls (must be at top level of setup)
   const isMobile = inject<Ref<boolean>>('isMobile')
@@ -203,24 +233,22 @@
   }
   
   onMounted(() => {
-    // NOVÉ: Načítať preferenciu notifikácií
+    // Načítať preferenciu notifikácií
     const saved = localStorage.getItem('notificationPreference')
     if (saved) {
       notificationState.value = Number(saved)
     }
     
-    // Request notification permission
     void notifications.requestPermission()
-    
-    // Set initial visibility state
     notifications.setAppVisible(!document.hidden)
     
-    // Listen for visibility changes
     document.addEventListener('visibilitychange', handleVisibilityChange)
-    
-    // Also listen for focus/blur (for better cross-browser support)
     window.addEventListener('focus', () => notifications.setAppVisible(true))
     window.addEventListener('blur', () => notifications.setAppVisible(false))
+    
+    // Načítať kanály a status
+    void store.fetchChannels()
+    void loadCurrentUserStatus()
   })
   
   onUnmounted(() => {
@@ -286,10 +314,67 @@
     void router.push('/newGroup');
   }
 
-  // Load channels from API when sidebar is mounted
-  onMounted(() => {
-    void store.fetchChannels()
+  // Status functions - AKTUALIZOVANÉ
+  async function setStatus(status: 'online' | 'DND' | 'offline') {
+    try {
+      await api.put('/api/users/me/status', { status })
+      
+      // Aktualizovať v store pomocou action
+      membersStore.updateCurrentUserStatus(status)
+      
+      $q.notify({
+        type: 'positive',
+        message: `Status changed to ${status}`,
+        position: 'top',
+        timeout: 2000
+      })
+    } catch (error) {
+      console.error('Failed to update status', error)
+      $q.notify({
+        type: 'negative',
+        message: 'Failed to update status',
+        position: 'top'
+      })
+    }
+  }
+  
+  // Computed properties for status icon and color
+  const statusIconColor = computed(() => {
+    const status = currentStatus.value
+    if (status === 'online') return 'green'
+    if (status === 'DND') return 'red'
+    return 'grey'
   })
+  
+  const statusText = computed(() => {
+    const status = currentStatus.value
+    if (status === 'online') return 'Online'
+    if (status === 'DND') return 'Do Not Disturb'
+    return 'Offline'
+  })
+  
+  const statusTooltip = computed(() => {
+    return `Status: ${currentStatus.value}`
+  })
+  
+  // Load current user status on mount - AKTUALIZOVANÉ
+  async function loadCurrentUserStatus() {
+    try {
+      const response = await api.get('/api/auth/me')
+      const userId = String(response.data.user.id)
+      
+      // Nastaviť currentUserId v store
+      membersStore.setCurrentUserId(userId)
+      
+      // Uložiť do localStorage pre iné komponenty
+      localStorage.setItem('currentUserId', userId)
+      
+      // Načítať všetkých používateľov
+      await membersStore.fetchAll()
+    } catch (error) {
+      console.error('Failed to load user status', error)
+    }
+  }
 
   </script>
   
@@ -421,6 +506,16 @@
     padding: 2px 6px;
     border-radius: 10px;
     text-align: center;
+  }
+  .channel-invited {
+    background: rgba(88, 101, 242, 0.15) !important;
+    border-left: 3px solid rgba(88, 101, 242, 0.8);
+    font-weight: 600;
+  }
+  
+  /* Status menu active item */
+  .status-active {
+    background: rgba(88, 101, 242, 0.2) !important;
   }
 
   /* Empty State */

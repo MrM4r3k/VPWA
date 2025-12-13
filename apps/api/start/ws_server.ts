@@ -101,5 +101,20 @@ realtimeBus.on('channel:refresh', (payload) => {
   console.log(`[WS] Sent channel:refresh to ${sentCount} client(s)`)
 })
 
+realtimeBus.on('user:status:changed', (payload) => {
+  const { userId, status } = payload
+  console.log(`[WS] user:status:changed event received for userId: ${userId}, status: ${status}, total clients: ${clients.size}`)
+
+  // Broadcast to all connected clients so they can update the user's status
+  let sentCount = 0
+  clients.forEach((_meta, ws) => {
+    if (ws.readyState === ws.OPEN) {
+      ws.send(JSON.stringify({ type: 'user:status:changed', data: { userId, status } }))
+      sentCount++
+    }
+  })
+  console.log(`[WS] Sent user:status:changed to ${sentCount} client(s)`)
+})
+
 export { wss }
 

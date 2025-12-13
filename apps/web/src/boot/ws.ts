@@ -4,6 +4,8 @@ import { useMessageStore, type Message } from 'src/stores/message-store'
 import { useTypingStore } from 'src/stores/typing-store'
 import { useChannelStore } from 'src/stores/channel-store'
 import { useNotificationStore } from 'src/stores/notification-store'
+import { useMembersStore } from 'src/stores/members-store'
+import { useWebSocketStore } from 'src/stores/websocket-store'
 import { api } from 'boot/axios'
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3334'
@@ -13,8 +15,13 @@ export default boot(() => {
   const typing = useTypingStore()
   const channels = useChannelStore()
   const notifications = useNotificationStore()
+  const membersStore = useMembersStore()
+  const wsStore = useWebSocketStore()
 
   let ws: WebSocket | null = null
+
+  // Queue pre offline správy
+  const offlineMessageQueue: Message[] = []
 
   // Helper funkcia pre kontrolu, či zobraziť notifikáciu
   function shouldShowNotification(message: Message, currentUserId: string | null): boolean {
@@ -23,6 +30,13 @@ export default boot(() => {
 
     // 0 = všetko, 1 = iba mentions, 2 = muted
     if (pref === 2) return false // Muted
+
+    // NOVÉ: Skontrolovať status používateľa
+    if (currentUserId) {
+      const currentUser = membersStore.getById(currentUserId)
+      if (currentUser?.status === 'DND') return false // DND blokuje notifikácie
+      if (currentUser?.status === 'offline') return false // Offline blokuje notifikácie
+    }
 
     if (pref === 1) {
       // Iba mentions - skontrolovať či je message.mentionUserId === currentUserId
@@ -35,10 +49,12 @@ export default boot(() => {
 
   function connect() {
     console.log('[WS] Attempting to connect to:', WS_URL)
+    wsStore.setConnecting(true)
     ws = new WebSocket(WS_URL)
 
     ws.onopen = async () => {
       console.log('[WS] WebSocket connected successfully!')
+      wsStore.setConnected(true)
       // Send userId to server for user-specific broadcasts
       try {
         const response = await api.get('/api/auth/me')
@@ -95,6 +111,16 @@ export default boot(() => {
               console.log('[WS] This is a mention for current user!')
             }
 
+            // NOVÉ: Skontrolovať status používateľa
+            const currentUser = membersStore.getById(currentUserId)
+
+            if (currentUser?.status === 'offline') {
+              // Uložiť do queue namiesto zobrazenia
+              offlineMessageQueue.push(m)
+              console.log('[WS] User is offline, message queued')
+              return
+            }
+
             // Append message to store
             messages.appendFromRealtime(m.channelId, m)
 
@@ -110,6 +136,10 @@ export default boot(() => {
             const messageChannelId = String(m.channelId)
             const isActiveChannel = activeChannelId === messageChannelId
 
+            // NOVÉ: Skontrolovať, či kanál má pending invitation
+            const messageChannel = channels.channels.find(c => c.id === messageChannelId)
+            const hasPendingInvitation = messageChannel?.isInvited === true
+
             // Zobraziť notifikáciu iba ak: app nie je visible ALEBO kanál správy nie je aktívny
             const shouldNotifyByVisibility = isAppHidden || !isActiveChannel
 
@@ -123,12 +153,19 @@ export default boot(() => {
               messageChannelId,
               activeChannelId,
               isActiveChannel,
+              hasPendingInvitation,
               shouldNotifyByVisibility,
               shouldNotifyByPreference,
               mentionUserId: m.mentionUserId,
               currentUserId: currentUserId,
               preference: Number(localStorage.getItem('notificationPreference') || '0')
             })
+
+            // NOVÉ: Nezobrazovať notifikáciu ak má kanál pending invitation
+            if (hasPendingInvitation) {
+              console.log('[WS] ⏭️ Skipping notification - channel has pending invitation')
+              return
+            }
 
             if (shouldNotifyByVisibility && shouldNotifyByPreference) {
               const authorName = m.author?.nickName || m.author?.name || 'Unknown'
@@ -209,6 +246,24 @@ export default boot(() => {
             console.error('[WS] Failed to refresh channels:', err)
           })
         }
+        if (type === 'user:status:changed' && data) {
+          const { userId, status } = data as { userId: number; status: 'online' | 'DND' | 'offline' }
+          console.log('[WS] User status changed:', { userId, status })
+
+          // Aktualizovať status v members store - použiť upsert pre reaktivitu
+          const member = membersStore.getById(String(userId))
+          if (member) {
+            // Vytvoriť nový objekt namiesto priamej zmeny vlastnosti
+            membersStore.upsert({
+              ...member,
+              status: status
+            })
+            console.log('[WS] Updated member status in store:', { userId, status })
+          } else {
+            // Ak member nie je v store, načítaj všetkých používateľov
+            void membersStore.fetchAll()
+          }
+        }
       } catch (err) {
         console.error('[WS] Message parse error', err)
       }
@@ -216,10 +271,12 @@ export default boot(() => {
 
     ws.onclose = (event) => {
       console.log('[WS] WebSocket closed:', event.code, event.reason)
+      wsStore.setConnected(false)
       setTimeout(connect, 2000)
     }
     ws.onerror = (error) => {
       console.error('[WS] WebSocket error:', error)
+      wsStore.setConnected(false)
       ws?.close()
     }
   }
@@ -240,6 +297,35 @@ export default boot(() => {
         subscribe(channel.id)
       })
     }
+  })
+
+  // NOVÉ: Watch pre zmeny statusu používateľa cez membersStore
+  membersStore.$subscribe((_mutation, state) => {
+    const currentUserId = localStorage.getItem('currentUserId')
+    if (!currentUserId) return
+
+    const user = state.byId[currentUserId]
+    if (!user) return
+
+    // Toto sa volá pri každej zmene v store, takže musíme sledovať zmeny statusu
+    // Použijeme jednoduchší prístup - pri každej zmene skontrolujeme, či sa status zmenil z offline na online
+    const wasOffline = localStorage.getItem('lastKnownStatus') === 'offline'
+    const isNowOnline = user.status === 'online'
+
+    if (wasOffline && isNowOnline) {
+      // Spracovať queue
+      console.log('[WS] User went online, processing queued messages:', offlineMessageQueue.length)
+      offlineMessageQueue.forEach((m) => {
+        messages.appendFromRealtime(m.channelId, m)
+      })
+      offlineMessageQueue.length = 0
+
+      // Aktualizovať kanály
+      void channels.fetchChannels()
+    }
+
+    // Uložiť aktuálny status
+    localStorage.setItem('lastKnownStatus', user.status)
   })
 
   return

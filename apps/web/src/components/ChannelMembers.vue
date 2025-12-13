@@ -61,6 +61,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { type Member, useMembersStore } from 'src/stores/members-store'
 import { useChannelStore } from 'src/stores/channel-store'
 
@@ -77,6 +78,9 @@ const emit = defineEmits<{
 const channels = useChannelStore()
 const members = useMembersStore()
 
+// Použiť storeToRefs pre reaktívny prístup k byId
+const { byId } = storeToRefs(members)
+
 // Umožní používať visible ako boolean v template, computed je na stále prepočítavanie
 const isVisible = computed({
   get: () => props.visible,
@@ -86,14 +90,22 @@ const isVisible = computed({
 // Hľadanie členov
 const search = ref('')
 
-// Zobrazuj len členov aktívnej skupiny
+// Zobrazuj len členov aktívnej skupiny - použiť priamy prístup k byId pre reaktivitu
 const activeMembers = computed<Member[]>(() => {
-  const membersList = channels.activeMembers
-  // Ak sú členovia prázdni, skús načítať z API
-  if (membersList.length === 0 && channels.activeChannel) {
-    // Members môžu chýbať v store, takže načítame všetkých používateľov
+  const activeChannel = channels.activeChannel
+  if (!activeChannel) return []
+  
+  const memberIds = activeChannel.memberIds
+  if (memberIds.length === 0) {
     void loadMembersIfNeeded()
+    return []
   }
+  
+  // Použiť priamy prístup k byId pre reaktivitu
+  const membersList = memberIds
+    .map(id => byId.value[id])
+    .filter((m): m is Member => m !== undefined)
+  
   return membersList
 })
 

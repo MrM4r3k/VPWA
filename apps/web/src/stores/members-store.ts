@@ -21,49 +21,86 @@ export const useMembersStore = defineStore('members', {
             u6: { id: 'u6', name: 'Mike Johnson', nickName: 'mike123', status: 'online' },
             u7: { id: 'u7', name: 'Sarah Chen', nickName: 'sarah6', status: 'offline' },
             u8: { id: 'u8', name: 'Emma Chen', nickName: 'emma8', status: 'DND' },
-        } as Record<string, Member>
+        } as Record<string, Member>,
+        currentUserId: null as string | null, // NOVÉ: držať currentUserId v store
     }),
-    getters: {//Čítanie dát
-        getById: (state) => (id: string) => state.byId[id], //Vracia používateľa podľa ID - ak nie je -> undefined
+    getters: {
+        getById: (state) => (id: string) => state.byId[id],
 
-        //Najprv získa celý state, potom vráti funkciu, ktorá prejde každé ID z poľa, z objektu state.byId
-        //zoberie príslušného člena, odstráni všetky neexistujúce (undefined) hodnoty pomocou .filter(Boolean)
-        // a vráti výsledok ako pole objektov typu Member[].
         getMany: (state) => (ids: string[]) =>
             ids.map(id => state.byId[id]).filter(Boolean) as Member[],
+
+        // NOVÉ: Getter pre aktuálny status
+        currentUserStatus(): UserStatus {
+            if (!this.currentUserId) return 'online'
+            const user = this.byId[this.currentUserId]
+            return user?.status || 'online'
+        },
+
+        // NOVÉ: Getter pre aktuálneho usera
+        currentUser(): Member | null {
+            if (!this.currentUserId) return null
+            return this.byId[this.currentUserId] || null
+        }
     },
-    actions: {//Menia dáta
-        upsert(member: Member) { //Pridať nového člena alebo aktualizovať existujúceho podľa id
+    actions: {
+        upsert(member: Member) {
             this.byId[member.id] = member
         },
-        upsertMany(members: Member[]) { //Naraz pridať viac členov
+
+        upsertMany(members: Member[]) {
             members.forEach(m => this.upsert(m))
         },
-        remove(id: string) { //Odstrániť člena podľa jeho id
+
+        remove(id: string) {
             delete this.byId[id]
         },
-        // Nacita realnych userov z backendu a ulozi ich do byId
+
+        // NOVÉ: Nastaviť currentUserId
+        setCurrentUserId(userId: string) {
+            this.currentUserId = userId
+        },
+
+        // NOVÉ: Aktualizovať status aktuálneho usera
+        updateCurrentUserStatus(status: UserStatus) {
+            if (!this.currentUserId) return
+            const user = this.byId[this.currentUserId]
+            if (user) {
+                this.byId[this.currentUserId] = {
+                    ...user,
+                    status
+                }
+            }
+        },
+
         async fetchAll() {
             const response = await api.get('/api/users')
-            const users = response.data.users as { id: number; name: string; nickName: string; email?: string }[]
+            const users = response.data.users as { id: number; name: string; nickName: string; email?: string; status?: 'online' | 'DND' | 'offline' }[]
 
-            const next: Record<string, Member> = {}
+            const userIds = new Set<string>()
             users.forEach((u) => {
+                const memberId = String(u.id)
+                userIds.add(memberId)
+
                 const member: Member = {
-                    id: String(u.id),
+                    id: memberId,
                     name: u.name,
                     nickName: u.nickName,
-                    status: 'online',
+                    status: u.status || 'online',
                 }
 
                 if (u.email) {
                     member.email = u.email
                 }
-                next[member.id] = member
+
+                this.byId[memberId] = member
             })
 
-            // Nahradime povodne mocky realnymi usermi
-            this.byId = next
+            Object.keys(this.byId).forEach(id => {
+                if (!userIds.has(id)) {
+                    delete this.byId[id]
+                }
+            })
         },
     }
 })

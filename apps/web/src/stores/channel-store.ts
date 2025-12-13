@@ -38,7 +38,15 @@ export const useChannelStore = defineStore('channels', {
         console.log('[ChannelStore] Fetching channels...')
         const response = await api.get('/api/channels')
         // API returns { channels: [...] }
-        this.channels = response.data.channels as Channel[]
+        const channels = response.data.channels as Channel[]
+        
+        // NOVÉ: Zoradiť - najprv pozvané kanály
+        this.channels = channels.sort((a, b) => {
+          if (a.isInvited && !b.isInvited) return -1
+          if (!a.isInvited && b.isInvited) return 1
+          return 0
+        })
+        
         console.log(`[ChannelStore] Loaded ${this.channels.length} channels`)
       } catch (err) {
         console.error('[ChannelStore] Failed to fetch channels:', err)
