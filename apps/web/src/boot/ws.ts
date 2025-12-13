@@ -1,4 +1,5 @@
 import { boot } from 'quasar/wrappers'
+import { Notify } from 'quasar'
 import { useMessageStore } from 'src/stores/message-store'
 import { useTypingStore } from 'src/stores/typing-store'
 import { useChannelStore } from 'src/stores/channel-store'
@@ -86,26 +87,87 @@ export default boot(() => {
               return
             }
 
-            // Check if this is a mention for current user
-            const isMention = m.isMentionForMe === true
+            // NOVÉ: Notifikácia iba ak app nie je visible ALEBO ak nie je otvorený kanál správy
+            const isAppHidden = document.hidden || document.visibilityState === 'hidden'
+            const activeChannelId = channels.activeChannelId
+            const messageChannelId = String(m.channelId)
+            const isActiveChannel = activeChannelId === messageChannelId
 
-            const authorName = m.author?.nickName || m.author?.name || 'Someone'
-            const channelName = channels.channels.find(c => c.id === String(m.channelId))?.channelName || 'Channel'
+            // Zobraziť notifikáciu iba ak: app nie je visible ALEBO kanál správy nie je aktívny
+            const shouldNotify = isAppHidden || !isActiveChannel
 
-            console.log('[WS] Calling showNotification:', {
-              authorName,
-              channelName,
-              channelId: String(m.channelId),
-              isMention
+            console.log('[WS] Notification check:', {
+              documentHidden: document.hidden,
+              visibilityState: document.visibilityState,
+              isAppHidden,
+              messageChannelId,
+              activeChannelId,
+              isActiveChannel,
+              shouldNotify
             })
 
-            // Show notification if needed
-            await notifications.showNotification(
-              isMention ? `@${authorName} in ${channelName}` : `${authorName} in ${channelName}`,
-              m.text || '',
-              String(m.channelId),
-              isMention
-            )
+            if (shouldNotify) {
+              const authorName = m.author?.nickName || m.author?.name || 'Unknown'
+              const messageText = m.text || ''
+              const truncatedText = messageText.length > 50
+                ? messageText.substring(0, 50) + '...'
+                : messageText
+
+              console.log('[WS] ✅ Showing notification:', { authorName, truncatedText })
+
+              // Zobraziť Quasar notifikáciu (v aplikácii)
+              try {
+                const notification = Notify.create({
+                  message: authorName,
+                  caption: truncatedText,
+                  color: 'primary',
+                  position: 'bottom-left',
+                  timeout: 5000,
+                  classes: 'custom-notification'
+                })
+                console.log('[WS] ✅ Quasar notification created successfully', notification)
+              } catch (error) {
+                console.error('[WS] ❌ Error creating Quasar notification:', error)
+              }
+
+              // Zobraziť systémovú notifikáciu (aj keď je okno minimalizované)
+              if (isAppHidden && 'Notification' in window) {
+                void (async () => {
+                  try {
+                    // Požiadať o povolenie, ak ešte nie je udelené
+                    if (Notification.permission === 'default') {
+                      const permission = await Notification.requestPermission()
+                      console.log('[WS] Notification permission:', permission)
+                    }
+
+                    // Zobraziť systémovú notifikáciu iba ak máme povolenie
+                    if (Notification.permission === 'granted') {
+                      const channelName = channels.channels.find(c => c.id === messageChannelId)?.channelName || 'Channel'
+                      const systemNotification = new Notification(`${authorName} in ${channelName}`, {
+                        body: truncatedText,
+                        icon: '/favicon.ico',
+                        badge: '/favicon.ico',
+                        tag: `channel-${messageChannelId}`, // Rovnaké tagy sa nahradia
+                        requireInteraction: false,
+                        silent: false
+                      })
+                      console.log('[WS] ✅ System notification created successfully', systemNotification)
+
+                      // Automaticky zatvoriť po 5 sekundách
+                      setTimeout(() => {
+                        systemNotification.close()
+                      }, 5000)
+                    } else {
+                      console.log('[WS] ⚠️ Notification permission not granted:', Notification.permission)
+                    }
+                  } catch (error) {
+                    console.error('[WS] ❌ Error creating system notification:', error)
+                  }
+                })()
+              }
+            } else {
+              console.log('[WS] ⏭️ Skipping notification - app is visible and user is on active channel')
+            }
           })()
         }
         if (type === 'typing' && data) {

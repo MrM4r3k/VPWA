@@ -2,14 +2,6 @@
   <footer v-if="active" class="chat-footer">
     <div class="composer-bar">
       <div class="composer-actions-left">
-        <q-btn 
-          round 
-          unelevated 
-          color="purple" 
-          icon="notifications" 
-          @click="showTestNotif"
-          size="sm"
-        />
       </div>
 
       <q-input
@@ -364,18 +356,6 @@ async function sendTyping() {
   }
 }
 
-//Notifikácia
-function showTestNotif() {
-  $q.notify({
-    message: 'Mike',
-    caption: 'Hey, how re u?',
-    color: 'white',
-    textColor: 'white',
-    classes: 'custom-notification',
-    html: true,
-    position: 'bottom-left'
-  })
-}
   </script>
   
 <style scoped>
