@@ -258,8 +258,18 @@ export default boot(() => {
         if (type === 'channel:refresh') {
           console.log('[WS] Channel refresh received, fetching channels...', data)
           // Refresh channel list when notified (always refresh, even if data is empty)
+          const currentChannelId = channels.activeChannelId
           channels.fetchChannels().then(() => {
             console.log('[WS] Channels refreshed successfully')
+
+            // If we were on a channel that no longer exists, redirect to welcome page
+            if (currentChannelId) {
+              const stillExists = channels.channels.find(c => c.id === currentChannelId)
+              if (!stillExists) {
+                console.log('[WS] Current channel no longer exists, redirecting to /app')
+                window.location.href = '/app'
+              }
+            }
           }).catch((err) => {
             console.error('[WS] Failed to refresh channels:', err)
           })
