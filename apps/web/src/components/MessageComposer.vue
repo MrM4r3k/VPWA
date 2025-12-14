@@ -13,7 +13,7 @@
         class="composer-input"
         :disable="hasPendingInvite"
         @keydown.enter.prevent="onEnter"
-        @input="onInput"
+        @update:model-value="onInput"
       />
 
       <div class="composer-actions-right">
@@ -22,40 +22,41 @@
     </div>
   </footer>
 </template>
-  
-  <script setup lang="ts">
-import { computed,ref } from 'vue'
+
+<script setup lang="ts">
+import { computed, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { useChannelStore, type Channel } from 'src/stores/channel-store'
 import { api } from 'boot/axios'
 import { useMessageStore } from 'src/stores/message-store'
-  
+
 const channels = useChannelStore()
 const messages = useMessageStore()
-  const $q = useQuasar()
-  const active = computed<Channel | null>(() => channels.activeChannel)
-  const text = ref('')
-  const cmdMenu = ref(false)
-  const canSend = computed(() => !!text.value.trim())
-  const hasPendingInvite = computed(() => active.value?.isInvited === true)
-  
+const $q = useQuasar()
+const active = computed<Channel | null>(() => channels.activeChannel)
+const text = ref('')
+const cmdMenu = ref(false)
+const canSend = computed(() => !!text.value.trim())
+const hasPendingInvite = computed(() => active.value?.isInvited === true)
+
 const emit = defineEmits<{
   (e: 'submit', payload: { text: string; channelId: string }): void
   (e: 'showMembers'): void
 }>()
 
-  function onEnter(e: KeyboardEvent) {
+function onEnter(e: KeyboardEvent) {
   if (e.shiftKey) return // povolíme nový riadok
-  
+
   const command = text.value.trim()
-  
+
   // Check for /list command before submitting
   if (command === '/list') {
     emit('showMembers')
+    void clearDraft()
     text.value = ''
     return
   }
-  
+
   // /join channelName [private]
   const joinMatch = command.match(/^\/join\s+(\S+)(?:\s+(private))?/i)
   if (joinMatch) {
@@ -64,50 +65,50 @@ const emit = defineEmits<{
     void handleJoin(channelName, isPrivate)
     return
   }
-  
+
   // /cancel - opustit kanál
   if (command === '/cancel') {
     void handleCancel()
     return
   }
-  
+
   // /quit - zrušit kanál (jen owner)
   if (command === '/quit') {
     void handleQuit()
     return
   }
-  
- // /promote <nick>
- const promoteMatch = command.match(/^\/promote\s+(@?)(\S+)/i)
- if (promoteMatch) {
-  const nick = promoteMatch[2] ?? ''
-  void handlePromote(nick)
-   return
- }
 
-// /kick <nick>
-const kickMatch = command.match(/^\/kick\s+(@?)(\S+)/i)
-if (kickMatch) {
-  const nick = kickMatch[2] ?? ''
-  void handleKick(nick)
-  return
-}
+  // /promote <nick>
+  const promoteMatch = command.match(/^\/promote\s+(@?)(\S+)/i)
+  if (promoteMatch) {
+    const nick = promoteMatch[2] ?? ''
+    void handlePromote(nick)
+    return
+  }
 
-// /invite <nick>
-const inviteMatch = command.match(/^\/invite\s+(@?)(\S+)/i)
-if (inviteMatch) {
-  const nick = inviteMatch[2] ?? ''
-  void handleInvite(nick)
-  return
-}
+  // /kick <nick>
+  const kickMatch = command.match(/^\/kick\s+(@?)(\S+)/i)
+  if (kickMatch) {
+    const nick = kickMatch[2] ?? ''
+    void handleKick(nick)
+    return
+  }
 
-// /revoke <nick>
-const revokeMatch = command.match(/^\/revoke\s+(@?)(\S+)/i)
-if (revokeMatch) {
-  const nick = revokeMatch[2] ?? ''
-  void handleRevoke(nick)
-  return
-}
+  // /invite <nick>
+  const inviteMatch = command.match(/^\/invite\s+(@?)(\S+)/i)
+  if (inviteMatch) {
+    const nick = inviteMatch[2] ?? ''
+    void handleInvite(nick)
+    return
+  }
+
+  // /revoke <nick>
+  const revokeMatch = command.match(/^\/revoke\s+(@?)(\S+)/i)
+  if (revokeMatch) {
+    const nick = revokeMatch[2] ?? ''
+    void handleRevoke(nick)
+    return
+  }
 
   submit()
 }
@@ -119,18 +120,82 @@ function submit() {
   if (!val) return
   void sendMessage(val)
 }
+
 //Keď používateľ napíše /list, vyvolajú sa členovia
 function onInput() {
   cmdMenu.value = text.value.trim().startsWith('/')
-  
+
   // Check for /list command
   if (text.value.trim() === '/list') {
     emit('showMembers')
+    void clearDraft()
     text.value = '' // Clear the input after showing popup
   }
 
   // fire typing notification (debounced by server side TTL)
   void sendTyping()
+
+  // fire draft update (throttled)
+  void sendDraft()
+}
+
+let draftTimer: number | null = null
+let lastDraftSentAt = 0
+
+function sendDraft() {
+  if (!active.value) return
+  if (hasPendingInvite.value) return
+
+  const channelId = active.value.id
+  const current = text.value
+
+  // Do not broadcast drafts for slash-commands; those are commands, not chat drafts
+  if (current.trim().startsWith('/')) {
+    void clearDraft()
+    return
+  }
+
+  const now = Date.now()
+  const intervalMs = 200
+  const elapsed = now - lastDraftSentAt
+
+  const postNow = () => {
+    lastDraftSentAt = Date.now()
+    void api.post(`/api/channels/${channelId}/draft`, { text: current })
+  }
+
+  if (elapsed >= intervalMs) {
+    if (draftTimer !== null) {
+      window.clearTimeout(draftTimer)
+      draftTimer = null
+    }
+    postNow()
+    return
+  }
+
+  // schedule a trailing update (keeps updating even while user is continuously typing)
+  if (draftTimer === null) {
+    draftTimer = window.setTimeout(() => {
+      draftTimer = null
+      if (!active.value || hasPendingInvite.value) return
+      const textNow = text.value
+      if (textNow.trim().startsWith('/')) {
+        void clearDraft()
+        return
+      }
+      lastDraftSentAt = Date.now()
+      void api.post(`/api/channels/${active.value.id}/draft`, { text: textNow })
+    }, intervalMs - elapsed)
+  }
+}
+
+async function clearDraft() {
+  if (!active.value) return
+  try {
+    await api.post(`/api/channels/${active.value.id}/draft`, { text: '' })
+  } catch {
+    // ignore
+  }
 }
 
 async function handlePromote(nick: string) {
@@ -155,6 +220,7 @@ async function handlePromote(nick: string) {
       position: 'top',
     })
   } finally {
+    void clearDraft()
     text.value = ''
   }
 }
@@ -181,6 +247,7 @@ async function handleKick(nick: string) {
       position: 'top',
     })
   } finally {
+    void clearDraft()
     text.value = ''
   }
 }
@@ -212,6 +279,7 @@ async function handleJoin(channelName: string, isPrivate: boolean) {
       position: 'top',
     })
   } finally {
+    void clearDraft()
     text.value = ''
   }
 }
@@ -242,6 +310,7 @@ async function handleCancel() {
       position: 'top',
     })
   } finally {
+    void clearDraft()
     text.value = ''
   }
 }
@@ -268,6 +337,7 @@ async function handleQuit() {
       position: 'top',
     })
   } finally {
+    void clearDraft()
     text.value = ''
   }
 }
@@ -294,6 +364,7 @@ async function handleInvite(nick: string) {
       position: 'top',
     })
   } finally {
+    void clearDraft()
     text.value = ''
   }
 }
@@ -320,6 +391,7 @@ async function handleRevoke(nick: string) {
       position: 'top',
     })
   } finally {
+    void clearDraft()
     text.value = ''
   }
 }
@@ -328,6 +400,7 @@ async function sendMessage(val: string) {
   if (!active.value) return
   try {
     await messages.send(active.value.id, val)
+    await clearDraft()
     emit('submit', { text: val, channelId: active.value.id })
   } catch (error: unknown) {
     console.error('Send message failed:', error)

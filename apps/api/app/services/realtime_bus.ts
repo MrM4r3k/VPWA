@@ -11,6 +11,13 @@ type TypingPayload = {
   nickName: string
 }
 
+ type DraftUpdatePayload = {
+  channelId: number
+  userId: number
+  nickName: string
+  text: string
+ }
+
 type ChannelRefreshPayload = {
   userId: number
 }
@@ -23,6 +30,7 @@ type UserStatusChangedPayload = {
 type EventMap = {
   'message:new': MessageNewPayload
   'typing': TypingPayload
+  'draft:update': DraftUpdatePayload
   'channel:refresh': ChannelRefreshPayload
   'user:status:changed': UserStatusChangedPayload
 }

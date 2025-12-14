@@ -6,6 +6,7 @@ import { useChannelStore } from 'src/stores/channel-store'
 import { useNotificationStore } from 'src/stores/notification-store'
 import { useMembersStore } from 'src/stores/members-store'
 import { useWebSocketStore } from 'src/stores/websocket-store'
+import { useDraftStore } from 'src/stores/draft-store'
 import { api } from 'boot/axios'
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3334'
@@ -17,6 +18,7 @@ export default boot(() => {
   const notifications = useNotificationStore()
   const membersStore = useMembersStore()
   const wsStore = useWebSocketStore()
+  const drafts = useDraftStore()
 
   let ws: WebSocket | null = null
 
@@ -235,11 +237,24 @@ export default boot(() => {
           })()
         }
         if (type === 'typing' && data) {
-          typing.upsert(data.channelId, {
-            userId: String(data.userId),
-            nickName: data.nickName,
+          typing.upsert(String((data as { channelId: number | string }).channelId), {
+            userId: String((data as { userId: number | string }).userId),
+            nickName: String((data as { nickName?: string }).nickName ?? 'unknown'),
           })
         }
+
+        if (type === 'draft:update' && data) {
+          const channelId = String((data as { channelId: number | string }).channelId)
+          const userId = String((data as { userId: number | string }).userId)
+          const nickName = String((data as { nickName?: string }).nickName ?? 'unknown')
+          const text = String((data as { text?: string }).text ?? '')
+
+          drafts.upsert({ channelId, userId, nickName, text })
+
+          // draft update implies "typing" activity
+          typing.upsert(channelId, { userId, nickName })
+        }
+
         if (type === 'channel:refresh') {
           console.log('[WS] Channel refresh received, fetching channels...', data)
           // Refresh channel list when notified (always refresh, even if data is empty)
@@ -249,6 +264,7 @@ export default boot(() => {
             console.error('[WS] Failed to refresh channels:', err)
           })
         }
+
         if (type === 'user:status:changed' && data) {
           const { userId, status } = data as { userId: number; status: 'online' | 'DND' | 'offline' }
           console.log('[WS] User status changed:', { userId, status })

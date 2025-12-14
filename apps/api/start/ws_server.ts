@@ -1,4 +1,4 @@
-import { WebSocketServer, type WebSocket } from 'ws'
+import { WebSocketServer, type RawData, type WebSocket } from 'ws'
 import env from '#start/env'
 import { realtimeBus } from '#services/realtime_bus'
 
@@ -22,12 +22,12 @@ function safeJsonParse(message: string) {
   }
 }
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws: WebSocket) => {
   console.log(`[WS Server] New client connected, total clients: ${clients.size + 1}`)
   const meta: ClientMeta = { channels: new Set(), userId: null }
   clients.set(ws, meta)
 
-  ws.on('message', (raw) => {
+  ws.on('message', (raw: RawData) => {
     const payload = typeof raw === 'string' ? raw : raw.toString()
     const data = safeJsonParse(payload)
     if (!data || typeof data !== 'object') return
@@ -75,6 +75,10 @@ realtimeBus.on('message:new', (payload) => {
 realtimeBus.on('typing', (payload) => {
   broadcast('typing', payload as unknown as Record<string, unknown>)
 })
+
+ realtimeBus.on('draft:update', (payload) => {
+  broadcast('draft:update', payload as unknown as Record<string, unknown>)
+ })
 
 realtimeBus.on('channel:refresh', (payload) => {
   const userId = (payload as { userId?: number }).userId

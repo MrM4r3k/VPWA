@@ -15,6 +15,7 @@ const ChannelsController = () => import('#controllers/channels_controller')
 const UsersController = () => import('#controllers/users_controller')
 const MessagesController = () => import('#controllers/messages_controller')
 const TypingController = () => import('#controllers/typing_controller')
+ const DraftController = () => import('#controllers/draft_controller')
 
 router.get('/', async () => {
   return {
@@ -47,6 +48,7 @@ router
     router.get('/channels/:channelId/messages', [MessagesController, 'index'])
     router.post('/channels/:channelId/messages', [MessagesController, 'store'])
     router.post('/channels/:channelId/typing', [TypingController, 'notify'])
+    router.post('/channels/:channelId/draft', [DraftController, 'update'])
     router.post('/channels/:channelId/accept', [ChannelsController, 'acceptInvite'])
     router.post('/channels/:channelId/reject', [ChannelsController, 'rejectInvite'])
     router.post('/channels/:channelId/leave', [ChannelsController, 'leave'])

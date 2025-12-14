@@ -78,9 +78,15 @@ import MessageComposer from 'src/components/MessageComposer.vue'
 import { useChannelStore } from 'src/stores/channel-store'
 import ChannelMembers from 'src/components/ChannelMembers.vue'
 import TypingPreviewPopup from 'src/components/TypingPreviewPopup.vue'
+import { useDraftStore, type DraftEntry } from 'src/stores/draft-store'
+import { useTypingStore } from 'src/stores/typing-store'
+import { useMembersStore } from 'src/stores/members-store'
 
 const route = useRoute()
 const ch = useChannelStore()
+const draftsStore = useDraftStore()
+const typingStore = useTypingStore()
+const membersStore = useMembersStore()
 
 // Panel visibility (desktop/tablet)
 const sidebarVisible = ref(true)
@@ -96,36 +102,45 @@ type TypingDraft = {
 const showMembersPopup = ref(false)
 const showTypingPreview = ref(false)
 
-// Temporary mock data for typing preview GUI
-const typingPreviewPresets: Record<string, TypingDraft[]> = {
-  'Team Beta': [
-    {
-      id: 'alex',
-      name: 'Alex Carter',
-      nick: 'alex',
-      text: 'Hey team, pushing the new build in about 5 minutes. Need a quick sanity check on the onboarding flow...'
-    },
-    {
-      id: 'maya',
-      name: 'Maya Singh',
-      nick: 'maya',
-      text: '/giphy ship it 🚀 (but seriously, the metrics look solid — adding them here)'
-    },
-    {
-      id: 'jules',
-      name: 'Jules Novak',
-      nick: 'jules',
-      text: 'Mocking up a quick response... almost there. Need to mention the pricing change + migration notes.'
-    }
-  ]
-}
+const typingPreview = computed<TypingDraft[]>(() => {
+  const channelId = ch.activeChannelId
+  if (!channelId) return []
 
-const typingPreview = computed(() => {
-  const channelName = ch.activeChannel?.channelName ?? ''
-  return typingPreviewPresets[channelName] ?? []
+  // Prefer real draft texts; fall back to "typing" users with empty text
+  const drafts = draftsStore.listByChannel(channelId)
+
+  const fromDrafts = drafts
+    .filter((d) => d.text.trim().length > 0)
+    .map((d: DraftEntry) => {
+      const member = membersStore.getById(String(d.userId))
+      return {
+        id: String(d.userId),
+        name: member?.name ?? d.nickName,
+        nick: d.nickName,
+        text: d.text,
+      }
+    })
+
+  if (fromDrafts.length > 0) return fromDrafts
+
+  const typingUsers = typingStore.listByChannel(channelId)
+  return typingUsers.map((u) => {
+    const member = membersStore.getById(String(u.userId))
+    return {
+      id: String(u.userId),
+      name: member?.name ?? u.nickName,
+      nick: u.nickName,
+      text: '',
+    }
+  })
 })
 
-const hasTypingActivity = computed(() => typingPreview.value.length > 0)
+const hasTypingActivity = computed(() => {
+  // show indicator if there is at least one draft OR at least one typing user
+  const channelId = ch.activeChannelId
+  if (!channelId) return false
+  return draftsStore.listByChannel(channelId).length > 0 || typingStore.listByChannel(channelId).length > 0
+})
 
 const firstName = (name: string) => {
   const part = name.trim().split(' ')[0]
@@ -222,6 +237,21 @@ function handleTypingPreviewClick() {
   if (!typingPreview.value.length) return
   showTypingPreview.value = true
 }
+
+let pruneInterval: number | null = null
+onMounted(() => {
+  // Periodically prune stale typing/drafts so UI disappears after inactivity
+  pruneInterval = window.setInterval(() => {
+    draftsStore.pruneAll(30000)
+    typingStore.pruneAll()
+  }, 1500)
+})
+
+onBeforeUnmount(() => {
+  if (pruneInterval !== null) {
+    window.clearInterval(pruneInterval)
+  }
+})
 
 </script>
 

@@ -8,5 +8,9 @@
       "@types/node",
       "@types/luxon"
     ]
-  }
+  },
+  "include": [
+    "**/*.ts",
+    "types/**/*.d.ts"
+  ]
 }

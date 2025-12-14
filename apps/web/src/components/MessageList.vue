@@ -28,9 +28,7 @@
         </div>
       </div>
     </q-infinite-scroll>
-    
-    <div v-if="hasTyping" class="typing-inline">Someone is typing…</div>
-    
+
     <!-- Blur overlay when invite is pending -->
     <div v-if="hasPendingInvite" class="invite-blur-overlay">
       <div class="invite-blur-message">
@@ -55,13 +53,11 @@
 import { computed, watch, ref, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useChannelStore } from 'src/stores/channel-store'
 import { useMessageStore, type Message } from 'src/stores/message-store'
-import { useTypingStore } from 'src/stores/typing-store'
 import { useMembersStore } from 'src/stores/members-store'
 import { date } from 'quasar'
 
 const channels = useChannelStore()
 const messages = useMessageStore()
-const typing = useTypingStore()
 const membersStore = useMembersStore()
 
 // scroll target passed from parent (IndexPage -> q-scroll-area)
@@ -178,12 +174,6 @@ onBeforeUnmount(() => {
       el.removeEventListener('scroll', scrollHandler)
     }
   }
-})
-
-const hasTyping = computed(() => {
-  const cid = activeChannelId.value
-  if (!cid) return false
-  return typing.listByChannel(cid).length > 0
 })
 
 async function onLoad(_index: number, done: () => void) {
